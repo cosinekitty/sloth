@@ -1,0 +1,4 @@
+#!/bin/bash
+g++ -Wall -Werror -o animate animate.cpp || exit 1
+./animate || exit 1
+exit 0
