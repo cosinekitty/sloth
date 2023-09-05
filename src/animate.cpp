@@ -65,8 +65,9 @@ static int UnitTest_ResistorFeedback()
     int n0 = circuit.createNode();
     int n1 = circuit.createNode();
     int n2 = circuit.createNode();
+    int ng = circuit.createGroundNode();
 
-    if (circuit.getNodeCount() != 3)
+    if (circuit.getNodeCount() != 4)
     {
         printf("FAIL(UnitTest_ResistorFeedback): Incorrect node count = %d\n", circuit.getNodeCount());
         return 1;
@@ -75,7 +76,7 @@ static int UnitTest_ResistorFeedback()
     float &vIn = circuit.allocateForcedVoltageNode(n0);
     circuit.addResistor(1000.0f, n0, n1);
     circuit.addResistor(10000.0f, n1, n2);
-    circuit.addOpAmp(n1, n2);
+    circuit.addOpAmp(ng, n1, n2);
 
     vIn = 1.0f;
     circuit.update(SAMPLE_RATE);

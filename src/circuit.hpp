@@ -78,14 +78,16 @@ namespace Analog
     struct OpAmp    // Positive input is always connected to ground, so we don't need to model it.
     {
         // Configuration
+        int posNodeIndex;
         int negNodeIndex;
         int outNodeIndex;
 
         // Dynamic state
         float current;    // current leaving the output terminal [amps]
 
-        OpAmp(int _negNodeIndex, int _outNodeIndex)
-            : negNodeIndex(_negNodeIndex)
+        OpAmp(int _posNodeIndex, int _negNodeIndex, int _outNodeIndex)
+            : posNodeIndex(_posNodeIndex)
+            , negNodeIndex(_negNodeIndex)
             , outNodeIndex(_outNodeIndex)
         {
             initialize();
@@ -145,7 +147,7 @@ namespace Analog
             // An op-amp output must do the same.
             // This relieves pressure on the solver to focus on adjusting voltages
             // only on the nodes for which it is *possible* to adjust voltages,
-            // i.e. the non-voltage-forced nodes.
+            // i.e. the unforced nodes.
 
             // Store the sourced current coming out of op-amp outputs.
             for (OpAmp& o : opAmpList)
@@ -160,22 +162,44 @@ namespace Analog
                     n.current = 0;
         }
 
+        void updateOpAmpOutputVoltages()
+        {
+            // Based on the voltage at the op-amp's input, calculate its output voltage.
+            for (OpAmp& o : opAmpList)
+            {
+                Node& posNode = nodeList.at(o.posNodeIndex);
+                Node& negNode = nodeList.at(o.negNodeIndex);
+                Node& outNode = nodeList.at(o.outNodeIndex);
+
+                outNode.voltage = OPAMP_GAIN * (posNode.voltage - negNode.voltage);
+                if (outNode.voltage < VNEG)
+                    outNode.voltage = VNEG;
+                else if (outNode.voltage > VPOS)
+                    outNode.voltage = VPOS;
+            }
+        }
+
+        void adjustNodeVoltages()
+        {
+            // Check the net currents for each unforced node.
+            // If there is excess current flowing into a node, pretend like
+            // positive charge is "piling up" there, resulting in an increase of
+            // voltage there. Over a few iterations, we want this to result in
+            // all the free node currents to converge to zero.
+        }
+
         bool refine(float dt)
         {
             sumNodeCurrents(dt);
+            updateOpAmpOutputVoltages();
+            adjustNodeVoltages();
             return true;
         }
 
     public:
-        const float vpos = +12;       // positive supply voltage fed to all op-amps
-        const float vneg = -12;       // negative supply voltage fed to all op-amps
-
-        int createNode()
-        {
-            int index = static_cast<int>(nodeList.size());
-            nodeList.push_back(Node());
-            return index;
-        }
+        const float OPAMP_GAIN = 1.0e+6f;
+        const float VPOS = +12;       // positive supply voltage fed to all op-amps
+        const float VNEG = -12;       // negative supply voltage fed to all op-amps
 
         void initialize()
         {
@@ -189,6 +213,13 @@ namespace Analog
                 o.initialize();
         }
 
+        int createNode()
+        {
+            int index = static_cast<int>(nodeList.size());
+            nodeList.push_back(Node());
+            return index;
+        }
+
         float& allocateForcedVoltageNode(int nodeIndex)
         {
             Node& node = nodeList.at(nodeIndex);
@@ -198,14 +229,17 @@ namespace Analog
             return node.voltage;
         }
 
-        void setForcedVoltageNode(int nodeIndex, float voltage)
+        int createFixedVoltageNode(float voltage)
         {
-            allocateForcedVoltageNode(nodeIndex) = voltage;
+            int nodeIndex = createNode();
+            float &nodeVoltage = allocateForcedVoltageNode(nodeIndex);
+            nodeVoltage = voltage;
+            return nodeIndex;
         }
 
-        void setGroundNode(int nodeIndex)
+        int createGroundNode()
         {
-            setForcedVoltageNode(nodeIndex, 0.0f);
+            return createFixedVoltageNode(0.0f);
         }
 
         Resistor& addResistor(float resistance, int aNodeIndex, int bNodeIndex)
@@ -224,11 +258,12 @@ namespace Analog
             return capacitorList.back();
         }
 
-        OpAmp& addOpAmp(int negNodeIndex, int outNodeIndex)
+        OpAmp& addOpAmp(int posNodeIndex, int negNodeIndex, int outNodeIndex)
         {
+            v(posNodeIndex);
             v(negNodeIndex);
             allocateForcedVoltageNode(outNodeIndex);
-            opAmpList.push_back(OpAmp(negNodeIndex, outNodeIndex));
+            opAmpList.push_back(OpAmp(posNodeIndex, negNodeIndex, outNodeIndex));
             return opAmpList.back();
         }
 
