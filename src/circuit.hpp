@@ -104,6 +104,12 @@ namespace Analog
         std::vector<Capacitor> capacitorList;
         std::vector<OpAmp> opAmpList;
 
+        int v(int nodeIndex) const
+        {
+            nodeList.at(nodeIndex);     // Validate the node index. Throw an exception if invalid.
+            return nodeIndex;
+        }
+
     public:
         const float vpos = +12;       // positive supply voltage fed to all op-amps
         const float vneg = -12;       // negative supply voltage fed to all op-amps
@@ -148,12 +154,23 @@ namespace Analog
 
         Resistor& addResistor(float resistance, int aNodeIndex, int bNodeIndex)
         {
-            resistorList.push_back(Resistor(resistance, aNodeIndex, bNodeIndex));
+            v(aNodeIndex);
+            v(bNodeIndex);
+            resistorList.push_back(Resistor(resistance, v(aNodeIndex), v(bNodeIndex)));
             return resistorList.back();
+        }
+
+        Capacitor& addCapacitor(float capacitance, int aNodeIndex, int bNodeIndex)
+        {
+            v(aNodeIndex);
+            v(bNodeIndex);
+            capacitorList.push_back(Capacitor(capacitance, aNodeIndex, bNodeIndex));
+            return capacitorList.back();
         }
 
         OpAmp& addOpAmp(int negNodeIndex, int outNodeIndex)
         {
+            v(negNodeIndex);
             allocateForcedVoltageNode(outNodeIndex);
             opAmpList.push_back(OpAmp(negNodeIndex, outNodeIndex));
             return opAmpList.back();
