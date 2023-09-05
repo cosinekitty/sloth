@@ -4,6 +4,8 @@
 #include <stdexcept>
 #include "circuit.hpp"
 
+const int SAMPLE_RATE = 44100;
+
 template <typename real_t>
 real_t v(real_t x, const char *fn, int lnum)
 {
@@ -76,7 +78,7 @@ static int UnitTest_ResistorFeedback()
     circuit.addOpAmp(n1, n2);
 
     vIn = 1.0f;
-    circuit.solve();
+    circuit.update(SAMPLE_RATE);
 
     float vCheck = circuit.getNodeVoltage(n0);
     printf("UnitTest_ResistorFeedback: input voltage = %0.6f V\n", vCheck);

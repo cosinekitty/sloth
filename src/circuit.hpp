@@ -15,7 +15,9 @@ namespace Analog
 {
     struct Node
     {
-        float voltage{};        // [volts]
+        float voltage{};        // guess/solution for voltage in the current sample. [volts]
+        float prevVoltage{};    // solution for voltage in the previous sample. [volts]
+        float current{};        // net current flowing into the node. must be zero to achieve a solution. [amps]
         bool forced = false;    // has a voltage forcer already assigned a required value to this node's voltage?
         // maybe have a solved flag also?
     };
@@ -110,6 +112,60 @@ namespace Analog
             return nodeIndex;
         }
 
+        void sumNodeCurrents(float dt)
+        {
+            // Add up currents flowing into each node.
+
+            for (Node& n : nodeList)
+                n.current = 0;
+
+            // Each resistor current immediately reflects the voltage drop across the resistor.
+            for (Resistor& r : resistorList)
+            {
+                Node& n1 = nodeList.at(r.aNodeIndex);
+                Node& n2 = nodeList.at(r.bNodeIndex);
+                r.current = (n1.voltage - n2.voltage) / r.resistance;
+                n1.current -= r.current;
+                n2.current += r.current;
+            }
+
+            // Capacitor current: i = C (dV/dt)
+            for (Capacitor& c : capacitorList)
+            {
+                Node& n1 = nodeList.at(c.aNodeIndex);
+                Node& n2 = nodeList.at(c.bNodeIndex);
+                float dV = (n1.voltage - n2.voltage) - (n1.prevVoltage - n2.prevVoltage);
+                c.current = c.capacitance * (dV/dt);
+                n1.current -= c.current;
+                n2.current += c.current;
+            }
+
+            // Fixed voltage nodes must source/sink any amount of current discrepancy.
+            // For example, a ground node must allow any excess current to flow into it.
+            // An op-amp output must do the same.
+            // This relieves pressure on the solver to focus on adjusting voltages
+            // only on the nodes for which it is *possible* to adjust voltages,
+            // i.e. the non-voltage-forced nodes.
+
+            // Store the sourced current coming out of op-amp outputs.
+            for (OpAmp& o : opAmpList)
+            {
+                Node &n = nodeList.at(o.outNodeIndex);
+                o.current = -n.current;
+                // Node current will be zeroed out below. No need to do it here also.
+            }
+
+            for (Node& n : nodeList)
+                if (n.forced)
+                    n.current = 0;
+        }
+
+        bool refine(float dt)
+        {
+            sumNodeCurrents(dt);
+            return true;
+        }
+
     public:
         const float vpos = +12;       // positive supply voltage fed to all op-amps
         const float vneg = -12;       // negative supply voltage fed to all op-amps
@@ -186,8 +242,22 @@ namespace Analog
             return nodeList.at(nodeIndex).voltage;
         }
 
-        void solve()
+        void update(float sampleRateHz)
         {
+            const float dt = 1 / sampleRateHz;
+
+            // Copy latest node voltages into previous node voltages.
+            // This is needed to calculate capacitor currents, which are based on
+            // the rate of change of the volage across each capacitor: i = C*(dV/dt).
+            for (Node& node : nodeList)
+                node.prevVoltage = node.voltage;
+
+            const int limit = 100;
+            for (int count = 0; count < limit; ++count)
+                if (refine(dt))
+                    return;
+
+            throw std::logic_error("Circuit solver failed to converge on a solution.");
         }
     };
 }
