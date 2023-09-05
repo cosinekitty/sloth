@@ -1,4 +1,9 @@
 #!/bin/bash
-g++ -Wall -Werror -o animate animate.cpp || exit 1
+if [[ "$1" == "debug" ]]; then
+    CPPOPT="-Og -g"
+else
+    CPPOPT="-O3"
+fi
+g++ ${CPPOPT} -Wall -Werror -o animate animate.cpp || exit 1
 ./animate || exit 1
 exit 0

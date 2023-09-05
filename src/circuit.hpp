@@ -239,7 +239,8 @@ namespace Analog
                 if (!n.forced)
                 {
                     n.savedVoltage = n.voltage;
-                    n.voltage -= DELTA_VOLTAGE * (n.slope / magnitude);    // subtract so that we move downhill
+                    n.slope *= -DELTA_VOLTAGE / magnitude;  // negative to go "downhill"
+                    n.voltage += n.slope;
                 }
             }
 
@@ -257,8 +258,8 @@ namespace Analog
             // We have just stepped DELTA_VOLTAGE along the hypervector.
             // What multiple of that distance would naively bring the error to zero?
             const double ALPHA = 0.3;   // fraction of the way to "jump" toward the naive ideal value
-            double step = ALPHA * score1 / (score3 - score1);
 
+            double step = ALPHA * (score1 / (score1 - score3));
             for (Node& n : nodeList)
                 if (!n.forced)
                     n.voltage = n.savedVoltage + (step * n.slope);
