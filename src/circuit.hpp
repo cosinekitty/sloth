@@ -15,10 +15,10 @@ namespace Analog
 {
     struct Node
     {
-        float voltage{};        // guess/solution for voltage in the current sample. [volts]
-        float prevVoltage{};    // solution for voltage in the previous sample. [volts]
-        float current{};        // net current flowing into the node. must be zero to achieve a solution. [amps]
-        float deriv{};          // dE/dV, where E = sum(current^2), V = voltage at node. [amp^2 / volt]
+        double voltage{};        // guess/solution for voltage in the current sample. [volts]
+        double prevVoltage{};    // solution for voltage in the previous sample. [volts]
+        double current{};        // net current flowing into the node. must be zero to achieve a solution. [amps]
+        double deriv{};          // dE/dV, where E = sum(current^2), V = voltage at node. [amp^2 / volt]
         bool forced = false;    // has a voltage forcer already assigned a required value to this node's voltage?
         // maybe have a solved flag also?
     };
@@ -27,14 +27,14 @@ namespace Analog
     struct Resistor
     {
         // Configuration
-        float resistance;   // [ohms]
+        double resistance;   // [ohms]
         int aNodeIndex;
         int bNodeIndex;
 
         // Dynamic state
-        float current;      // current into the resistor from node A and out from the resistor to node B [amps]
+        double current;      // current into the resistor from node A and out from the resistor to node B [amps]
 
-        Resistor(float _resistance, int _aNodeIndex, int _bNodeIndex)
+        Resistor(double _resistance, int _aNodeIndex, int _bNodeIndex)
             : resistance(_resistance)
             , aNodeIndex(_aNodeIndex)
             , bNodeIndex(_bNodeIndex)
@@ -52,14 +52,14 @@ namespace Analog
     struct Capacitor
     {
         // Configuration
-        float capacitance;  // [farads]
+        double capacitance;  // [farads]
         int aNodeIndex;
         int bNodeIndex;
 
         // Dynamic state
-        float current;      // [amps]
+        double current;      // [amps]
 
-        Capacitor(float _capacitance, int _aNodeIndex, int _bNodeIndex)
+        Capacitor(double _capacitance, int _aNodeIndex, int _bNodeIndex)
             : capacitance(_capacitance)
             , aNodeIndex(_aNodeIndex)
             , bNodeIndex(_bNodeIndex)
@@ -82,7 +82,7 @@ namespace Analog
         int outNodeIndex;
 
         // Dynamic state
-        float current;    // current leaving the output terminal [amps]
+        double current;    // current leaving the output terminal [amps]
 
         OpAmp(int _posNodeIndex, int _negNodeIndex, int _outNodeIndex)
             : posNodeIndex(_posNodeIndex)
@@ -113,7 +113,7 @@ namespace Analog
             return nodeIndex;
         }
 
-        float updateCurrents(float dt)     // returns sum-of-squares of node current discrepancies
+        double updateCurrents(double dt)     // returns sum-of-squares of node current discrepancies
         {
             // Based on the voltage at each op-amp's input, calculate its output voltage.
             for (OpAmp& o : opAmpList)
@@ -149,7 +149,7 @@ namespace Analog
             {
                 Node& n1 = nodeList.at(c.aNodeIndex);
                 Node& n2 = nodeList.at(c.bNodeIndex);
-                float dV = (n1.voltage - n2.voltage) - (n1.prevVoltage - n2.prevVoltage);
+                double dV = (n1.voltage - n2.voltage) - (n1.prevVoltage - n2.prevVoltage);
                 c.current = c.capacitance * (dV/dt);
                 n1.current -= c.current;
                 n2.current += c.current;
@@ -170,7 +170,7 @@ namespace Analog
                 // Node current will be zeroed out below. No need to do it here also.
             }
 
-            float score = 0;
+            double score = 0;
             for (Node& n : nodeList)
                 if (n.forced)
                     n.current = 0;      // Nodes with forced voltages must source/sink arbitrary current.
@@ -180,18 +180,18 @@ namespace Analog
             return score;
         }
 
-        bool adjustNodeVoltages(float dt)
+        bool adjustNodeVoltages(double dt)
         {
-            const float SCORE_TOLERANCE = 1.0e-12;      // RMS = 1 microamp
+            const double SCORE_TOLERANCE = 1.0e-12;      // RMS = 1 microamp
 
             // Measure the simulation error before changing any unforced node voltages.
-            float score1 = updateCurrents(dt);
+            double score1 = updateCurrents(dt);
 
             // If the score is good enough, consider the update successful.
             if (score1 < SCORE_TOLERANCE)
                 return true;
 
-            const float deltaVoltage = 1.0e-6;
+            const double deltaVoltage = 1.0e-6;
 
             // Calculate partial derivatives of how much each node's voltage
             // affects the simulation error.
@@ -199,7 +199,7 @@ namespace Analog
             {
                 if (!n.forced)
                 {
-                    float savedVoltage = n.voltage;
+                    double savedVoltage = n.voltage;
 
                     // Tweak the voltage a tiny amount on this node.
                     // FIXFIXFIX: because of op-amps, derivatives may not converge
@@ -212,7 +212,7 @@ namespace Analog
 
                     // See how much change it makes to the solution score.
                     // We are looking for dE/dV, where E = error and V = voltage.
-                    float score2 = updateCurrents(dt);
+                    double score2 = updateCurrents(dt);
 
                     // Store this derivative in each unforced node.
                     // We will use them later to update all node voltages to get
@@ -224,7 +224,7 @@ namespace Analog
                 }
             }
 
-            const float ALPHA = 0.3f;   // fraction of the way to "jump" toward the naive ideal value
+            const double ALPHA = 0.3;   // fraction of the way to "jump" toward the naive ideal value
             for (Node& n : nodeList)
             {
                 if (!n.forced)
@@ -239,9 +239,9 @@ namespace Analog
         }
 
     public:
-        const float OPAMP_GAIN = 1.0e+6f;
-        const float VPOS = +12;       // positive supply voltage fed to all op-amps
-        const float VNEG = -12;       // negative supply voltage fed to all op-amps
+        const double OPAMP_GAIN = 1.0e+6;
+        const double VPOS = +12;       // positive supply voltage fed to all op-amps
+        const double VNEG = -12;       // negative supply voltage fed to all op-amps
 
         void initialize()
         {
@@ -262,7 +262,7 @@ namespace Analog
             return index;
         }
 
-        float& allocateForcedVoltageNode(int nodeIndex)
+        double& allocateForcedVoltageNode(int nodeIndex)
         {
             Node& node = nodeList.at(nodeIndex);
             if (node.forced)
@@ -271,20 +271,20 @@ namespace Analog
             return node.voltage;
         }
 
-        int createFixedVoltageNode(float voltage)
+        int createFixedVoltageNode(double voltage)
         {
             int nodeIndex = createNode();
-            float &nodeVoltage = allocateForcedVoltageNode(nodeIndex);
+            double &nodeVoltage = allocateForcedVoltageNode(nodeIndex);
             nodeVoltage = voltage;
             return nodeIndex;
         }
 
         int createGroundNode()
         {
-            return createFixedVoltageNode(0.0f);
+            return createFixedVoltageNode(0.0);
         }
 
-        Resistor& addResistor(float resistance, int aNodeIndex, int bNodeIndex)
+        Resistor& addResistor(double resistance, int aNodeIndex, int bNodeIndex)
         {
             v(aNodeIndex);
             v(bNodeIndex);
@@ -292,7 +292,7 @@ namespace Analog
             return resistorList.back();
         }
 
-        Capacitor& addCapacitor(float capacitance, int aNodeIndex, int bNodeIndex)
+        Capacitor& addCapacitor(double capacitance, int aNodeIndex, int bNodeIndex)
         {
             v(aNodeIndex);
             v(bNodeIndex);
@@ -314,14 +314,14 @@ namespace Analog
             return nodeList.size();
         }
 
-        float getNodeVoltage(int nodeIndex) const
+        double getNodeVoltage(int nodeIndex) const
         {
             return nodeList.at(nodeIndex).voltage;
         }
 
-        int update(float sampleRateHz)
+        int update(double sampleRateHz)
         {
-            const float dt = 1 / sampleRateHz;
+            const double dt = 1.0 / sampleRateHz;
 
             // Copy latest node voltages into previous node voltages.
             // This is needed to calculate capacitor currents, which are based on

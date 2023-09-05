@@ -41,11 +41,11 @@ static int CheckSolution(
     const Analog::Circuit& circuit,
     const char *name,
     int outNodeIndex,
-    float vOutExpected,
-    float tolerance = 1.0e-6f)
+    double vOutExpected,
+    double tolerance = 1.0e-6)
 {
-    float vOut = V(circuit.getNodeVoltage(outNodeIndex));
-    float diff = ABS(vOut - vOutExpected);
+    double vOut = V(circuit.getNodeVoltage(outNodeIndex));
+    double diff = ABS(vOut - vOutExpected);
     if (diff > tolerance)
     {
         printf("FAIL(%s): EXCESSIVE voltage error %f on node %d.\n", name, diff, outNodeIndex);
@@ -73,19 +73,19 @@ static int UnitTest_ResistorFeedback()
         return 1;
     }
 
-    float &vIn = circuit.allocateForcedVoltageNode(n0);
+    double &vIn = circuit.allocateForcedVoltageNode(n0);
     circuit.addResistor(1000.0f, n0, n1);
     circuit.addResistor(10000.0f, n1, n2);
     circuit.addOpAmp(ng, n1, n2);
 
-    vIn = 1.0f;
+    vIn = 1.0;
     circuit.update(SAMPLE_RATE);
 
-    float vCheck = circuit.getNodeVoltage(n0);
-    printf("UnitTest_ResistorFeedback: input voltage = %0.6f V\n", vCheck);
+    double vCheck = circuit.getNodeVoltage(n0);
+    printf("UnitTest_ResistorFeedback: input voltage = %0.6lf V\n", vCheck);
     if (vCheck != vIn)
     {
-        printf("FAIL(UnitTest_ResistorFeedback): vIn=%f, but vCheck=%f\n", vIn, vCheck);
+        printf("FAIL(UnitTest_ResistorFeedback): vIn=%lf, but vCheck=%lf\n", vIn, vCheck);
         return 1;
     }
 
