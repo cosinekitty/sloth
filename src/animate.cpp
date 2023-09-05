@@ -1,7 +1,26 @@
 #include <cstring>
 #include <cstdio>
 #include <cmath>
+#include <stdexcept>
 #include "circuit.hpp"
+
+template <typename real_t>
+real_t v(real_t x, const char *fn, int lnum)
+{
+    if (!std::isfinite(x))
+    {
+        std::string message = "FAIL(";
+        message += fn;
+        message += " line ";
+        message += std::to_string(lnum);
+        message += "): number is not finite.";
+        throw std::range_error(message);
+    }
+    return x;
+}
+
+#define V(x)    v(x, __FILE__, __LINE__)
+#define ABS(x)  std::abs(v(x, __FILE__, __LINE__))
 
 static int Animate();
 static int UnitTest_ResistorFeedback();
@@ -13,6 +32,24 @@ int main(int argc, const char *argv[])
         return 0;   // stop after unit tests
 
     return Animate();
+}
+
+
+static int CheckSolution(
+    const Analog::Circuit& circuit,
+    const char *name,
+    int outNodeIndex,
+    float vOutExpected,
+    float tolerance = 1.0e-6f)
+{
+    float vOut = V(circuit.getNodeVoltage(outNodeIndex));
+    float diff = ABS(vOut - vOutExpected);
+    if (diff > tolerance)
+    {
+        printf("FAIL(%s): EXCESSIVE voltage error %f on node %d.\n", name, diff, outNodeIndex);
+        return 1;
+    }
+    return 0;
 }
 
 
@@ -49,16 +86,7 @@ static int UnitTest_ResistorFeedback()
         return 1;
     }
 
-    float vOut = circuit.getNodeVoltage(n2);
-    printf("UnitTest_ResistorFeedback: output voltage = %0.6f V\n", vOut);
-
-    float diff = std::abs(vOut - 10.0f);
-    if (diff > 1.0e-6)
-    {
-        printf("FAIL(UnitTest_ResistorFeedback): EXCESSIVE output voltage error = %f\n", diff);
-        return 1;
-    }
-
+    if (CheckSolution(circuit, "ResistorFeedback", n2, 10.0f)) return 1;
     return 0;
 }
 
