@@ -159,6 +159,11 @@ namespace Analog
             return opAmpList.back();
         }
 
+        int getNodeCount() const
+        {
+            return nodeList.size();
+        }
+
         float getNodeVoltage(int nodeIndex) const
         {
             return nodeList.at(nodeIndex).voltage;
