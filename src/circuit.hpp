@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <memory>
 #include <vector>
 #include <stdexcept>
@@ -15,10 +16,11 @@ namespace Analog
 {
     struct Node
     {
-        double voltage{};        // guess/solution for voltage in the current sample. [volts]
-        double prevVoltage{};    // solution for voltage in the previous sample. [volts]
-        double current{};        // net current flowing into the node. must be zero to achieve a solution. [amps]
-        double deriv{};          // dE/dV, where E = sum(current^2), V = voltage at node. [amp^2 / volt]
+        double prevVoltage{};   // solution for voltage in the previous sample. [volts]
+        double voltage{};       // guess/solution for voltage in the current sample. [volts]
+        double savedVoltage{};  // temporary scratch-pad for holding pre-mutated voltage [volts]
+        double current{};       // net current flowing into the node. must be zero to achieve a solution. [amps]
+        double slope{};         // delta E, where E = sum(current^2); gradient steepness from changing this node's voltage
         bool forced = false;    // has a voltage forcer already assigned a required value to this node's voltage?
         // maybe have a solved flag also?
     };
@@ -182,7 +184,8 @@ namespace Analog
 
         bool adjustNodeVoltages(double dt)
         {
-            const double SCORE_TOLERANCE = 1.0e-12;      // RMS = 1 microamp
+            const double SCORE_TOLERANCE = 1.0e-12;     // RMS = 1 microamp
+            const double DELTA_VOLTAGE = 1.0e-9;        // step size = 1 nanovolt
 
             // Measure the simulation error before changing any unforced node voltages.
             double score1 = updateCurrents(dt);
@@ -191,49 +194,74 @@ namespace Analog
             if (score1 < SCORE_TOLERANCE)
                 return true;
 
-            const double deltaVoltage = 1.0e-6;
-
             // Calculate partial derivatives of how much each node's voltage
             // affects the simulation error.
             for (Node &n : nodeList)
             {
                 if (!n.forced)
                 {
-                    double savedVoltage = n.voltage;
+                    n.savedVoltage = n.voltage;
 
                     // Tweak the voltage a tiny amount on this node.
-                    // FIXFIXFIX: because of op-amps, derivatives may not converge
+                    // FIXFIXFIX: because of op-amps, slopes may not converge
                     // from both directions when we are near the boundary between
                     // "linear amplifier mode" and "comparator mode".
                     // I might have to try increasing and decreasing the voltage,
-                    // pick whichever one reduces the overall simulation error,
-                    // and remember that derivative.
-                    n.voltage += deltaVoltage;
+                    // pick whichever one reduces the overall simulation error.
+                    n.voltage += DELTA_VOLTAGE;
 
                     // See how much change it makes to the solution score.
                     // We are looking for dE/dV, where E = error and V = voltage.
                     double score2 = updateCurrents(dt);
 
-                    // Store this derivative in each unforced node.
+                    // Store this slope in each unforced node.
                     // We will use them later to update all node voltages to get
                     // closer to the desired solution.
-                    n.deriv = (score2 - score1) / deltaVoltage;
+                    n.slope = score2 - score1;
 
                     // Restore the original voltage.
-                    n.voltage = savedVoltage;
+                    n.voltage = n.savedVoltage;
                 }
             }
 
-            const double ALPHA = 0.3;   // fraction of the way to "jump" toward the naive ideal value
+            // Calculate the derivative of changing the entire system state in
+            // the direction indicated by the hypervector that points downhill
+            // toward the steepest direction of decreased system error.
+            // Normalize the vector such that its magnitude is still DELTA_VOLTAGE.
+            double magnitude = 0;
+            for (Node& n : nodeList)
+                if (!n.forced)
+                    magnitude += n.slope * n.slope;
+            magnitude = std::sqrt(magnitude);
+
             for (Node& n : nodeList)
             {
                 if (!n.forced)
                 {
-                    // Use the derivative dE/dV at each node to calculate
-                    // how much to update the guess of the voltage at that node.
-                    n.voltage -= ALPHA / n.deriv;
+                    n.savedVoltage = n.voltage;
+                    n.voltage -= DELTA_VOLTAGE * (n.slope / magnitude);    // subtract so that we move downhill
                 }
             }
+
+            double score3 = updateCurrents(dt);
+
+            // We should never lose ground. Otherwise we risk not converging.
+            if (score3 >= score1)
+                throw std::logic_error("Solver is losing ground.");
+
+            // The naive idea would be to assume everything is linear and that we
+            // can extrapolate where we would hit zero error.
+            // In reality we have to be more cautious, hence the ALPHA factor.
+            // We want to approach the solution quickly, but without oscillating around it
+            // or worse, becoming unstable and diverging.
+            // We have just stepped DELTA_VOLTAGE along the hypervector.
+            // What multiple of that distance would naively bring the error to zero?
+            const double ALPHA = 0.3;   // fraction of the way to "jump" toward the naive ideal value
+            double step = ALPHA * score1 / (score3 - score1);
+
+            for (Node& n : nodeList)
+                if (!n.forced)
+                    n.voltage = n.savedVoltage + (step * n.slope);
 
             return false;
         }
