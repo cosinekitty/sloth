@@ -69,7 +69,7 @@ static int UnitTest_ResistorFeedback()
 
     if (circuit.getNodeCount() != 4)
     {
-        printf("FAIL(UnitTest_ResistorFeedback): Incorrect node count = %d\n", circuit.getNodeCount());
+        printf("FAIL(ResistorFeedback): Incorrect node count = %d\n", circuit.getNodeCount());
         return 1;
     }
 
@@ -82,14 +82,25 @@ static int UnitTest_ResistorFeedback()
     circuit.update(SAMPLE_RATE);
 
     double vCheck = circuit.getNodeVoltage(n0);
-    printf("UnitTest_ResistorFeedback: input voltage = %0.6lf V\n", vCheck);
+    printf("ResistorFeedback: input voltage = %0.6lf V\n", vCheck);
     if (vCheck != vIn)
     {
-        printf("FAIL(UnitTest_ResistorFeedback): vIn=%lf, but vCheck=%lf\n", vIn, vCheck);
+        printf("FAIL(ResistorFeedback): vIn=%lf, but vCheck=%lf\n", vIn, vCheck);
         return 1;
     }
 
-    if (CheckSolution(circuit, "ResistorFeedback", n2, 10.0f)) return 1;
+    if (CheckSolution(circuit, "ResistorFeedback1", n2, -10.0f)) return 1;
+
+    // Verify that op-amp clamping is working as expected, on both the low end and the high end.
+    vIn = 2.0;
+    circuit.update(SAMPLE_RATE);
+    if (CheckSolution(circuit, "ResistorFeedback2", n2, circuit.VNEG)) return 1;
+
+    vIn = -2.0;
+    circuit.update(SAMPLE_RATE);
+    if (CheckSolution(circuit, "ResistorFeedback3", n2, circuit.VPOS)) return 1;
+
+    printf("ResistorFeedback: PASS\n");
     return 0;
 }
 
