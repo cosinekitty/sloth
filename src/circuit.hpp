@@ -18,6 +18,7 @@ namespace Analog
         float voltage{};        // guess/solution for voltage in the current sample. [volts]
         float prevVoltage{};    // solution for voltage in the previous sample. [volts]
         float current{};        // net current flowing into the node. must be zero to achieve a solution. [amps]
+        float deriv{};          // dE/dV, where E = sum(current^2), V = voltage at node. [amp^2 / volt]
         bool forced = false;    // has a voltage forcer already assigned a required value to this node's voltage?
         // maybe have a solved flag also?
     };
@@ -57,7 +58,6 @@ namespace Analog
 
         // Dynamic state
         float current;      // [amps]
-        float drop;         // potential drop based on current charge level [volts]
 
         Capacitor(float _capacitance, int _aNodeIndex, int _bNodeIndex)
             : capacitance(_capacitance)
@@ -70,7 +70,6 @@ namespace Analog
         void initialize()
         {
             current = 0;
-            drop = 0;
         }
     };
 
@@ -114,8 +113,22 @@ namespace Analog
             return nodeIndex;
         }
 
-        void sumNodeCurrents(float dt)
+        float updateCurrents(float dt)     // returns sum-of-squares of node current discrepancies
         {
+            // Based on the voltage at each op-amp's input, calculate its output voltage.
+            for (OpAmp& o : opAmpList)
+            {
+                Node& posNode = nodeList.at(o.posNodeIndex);
+                Node& negNode = nodeList.at(o.negNodeIndex);
+                Node& outNode = nodeList.at(o.outNodeIndex);
+
+                outNode.voltage = OPAMP_GAIN * (posNode.voltage - negNode.voltage);
+                if (outNode.voltage < VNEG)
+                    outNode.voltage = VNEG;
+                else if (outNode.voltage > VPOS)
+                    outNode.voltage = VPOS;
+            }
+
             // Add up currents flowing into each node.
 
             for (Node& n : nodeList)
@@ -157,43 +170,72 @@ namespace Analog
                 // Node current will be zeroed out below. No need to do it here also.
             }
 
+            float score = 0;
             for (Node& n : nodeList)
                 if (n.forced)
-                    n.current = 0;
+                    n.current = 0;      // Nodes with forced voltages must source/sink arbitrary current.
+                else
+                    score += n.current * n.current;     // sum of squared currents = simulation error
+
+            return score;
         }
 
-        void updateOpAmpOutputVoltages()
+        bool adjustNodeVoltages(float dt)
         {
-            // Based on the voltage at the op-amp's input, calculate its output voltage.
-            for (OpAmp& o : opAmpList)
+            const float SCORE_TOLERANCE = 1.0e-12;      // RMS = 1 microamp
+
+            // Measure the simulation error before changing any unforced node voltages.
+            float score1 = updateCurrents(dt);
+
+            // If the score is good enough, consider the update successful.
+            if (score1 < SCORE_TOLERANCE)
+                return true;
+
+            const float deltaVoltage = 1.0e-6;
+
+            // Calculate partial derivatives of how much each node's voltage
+            // affects the simulation error.
+            for (Node &n : nodeList)
             {
-                Node& posNode = nodeList.at(o.posNodeIndex);
-                Node& negNode = nodeList.at(o.negNodeIndex);
-                Node& outNode = nodeList.at(o.outNodeIndex);
+                if (!n.forced)
+                {
+                    float savedVoltage = n.voltage;
 
-                outNode.voltage = OPAMP_GAIN * (posNode.voltage - negNode.voltage);
-                if (outNode.voltage < VNEG)
-                    outNode.voltage = VNEG;
-                else if (outNode.voltage > VPOS)
-                    outNode.voltage = VPOS;
+                    // Tweak the voltage a tiny amount on this node.
+                    // FIXFIXFIX: because of op-amps, derivatives may not converge
+                    // from both directions when we are near the boundary between
+                    // "linear amplifier mode" and "comparator mode".
+                    // I might have to try increasing and decreasing the voltage,
+                    // pick whichever one reduces the overall simulation error,
+                    // and remember that derivative.
+                    n.voltage += deltaVoltage;
+
+                    // See how much change it makes to the solution score.
+                    // We are looking for dE/dV, where E = error and V = voltage.
+                    float score2 = updateCurrents(dt);
+
+                    // Store this derivative in each unforced node.
+                    // We will use them later to update all node voltages to get
+                    // closer to the desired solution.
+                    n.deriv = (score2 - score1) / deltaVoltage;
+
+                    // Restore the original voltage.
+                    n.voltage = savedVoltage;
+                }
             }
-        }
 
-        void adjustNodeVoltages()
-        {
-            // Check the net currents for each unforced node.
-            // If there is excess current flowing into a node, pretend like
-            // positive charge is "piling up" there, resulting in an increase of
-            // voltage there. Over a few iterations, we want this to result in
-            // all the free node currents to converge to zero.
-        }
+            const float ALPHA = 0.3f;   // fraction of the way to "jump" toward the naive ideal value
+            for (Node& n : nodeList)
+            {
+                if (!n.forced)
+                {
+                    // Use the derivative dE/dV at each node to calculate
+                    // how much to update the guess of the voltage at that node.
+                    n.voltage -= ALPHA / n.deriv;
+                }
+            }
 
-        bool refine(float dt)
-        {
-            sumNodeCurrents(dt);
-            updateOpAmpOutputVoltages();
-            adjustNodeVoltages();
-            return true;
+            return false;
         }
 
     public:
@@ -277,20 +319,20 @@ namespace Analog
             return nodeList.at(nodeIndex).voltage;
         }
 
-        void update(float sampleRateHz)
+        int update(float sampleRateHz)
         {
             const float dt = 1 / sampleRateHz;
 
             // Copy latest node voltages into previous node voltages.
             // This is needed to calculate capacitor currents, which are based on
-            // the rate of change of the volage across each capacitor: i = C*(dV/dt).
+            // the rate of change of the voltage across each capacitor: i = C*(dV/dt).
             for (Node& node : nodeList)
                 node.prevVoltage = node.voltage;
 
             const int limit = 100;
-            for (int count = 0; count < limit; ++count)
-                if (refine(dt))
-                    return;
+            for (int count = 1; count <= limit; ++count)
+                if (adjustNodeVoltages(dt))
+                    return count;       // return count so the caller can measure convergence efficiency
 
             throw std::logic_error("Circuit solver failed to converge on a solution.");
         }
