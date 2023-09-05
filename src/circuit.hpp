@@ -84,5 +84,11 @@ namespace Analog
         std::vector<ComponentRef> componentList;
 
     public:
+        std::size_t add(Component *component)
+        {
+            std::size_t index = componentList.size();
+            componentList.push_back(ComponentRef(component));
+            return index;
+        }
     };
 }
