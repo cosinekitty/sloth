@@ -154,6 +154,7 @@ namespace Analog
 
         OpAmp& addOpAmp(int negNodeIndex, int outNodeIndex)
         {
+            allocateForcedVoltageNode(outNodeIndex);
             opAmpList.push_back(OpAmp(negNodeIndex, outNodeIndex));
             return opAmpList.back();
         }
