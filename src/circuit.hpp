@@ -15,8 +15,8 @@ namespace Analog
 {
     struct Node
     {
-        float voltage{};    // [volts]
-        bool forced{};      // has a voltage forcer already assigned a required value to this node's voltage?
+        float voltage{};        // [volts]
+        bool forced = false;    // has a voltage forcer already assigned a required value to this node's voltage?
         // maybe have a solved flag also?
     };
 
@@ -96,29 +96,6 @@ namespace Analog
     };
 
 
-    struct FixedVoltage
-    {
-        // Configuration
-        float voltage;    // the voltage forced by this device onto the attached node [volts]
-        int nodeIndex;
-
-        // Dynamic state
-        float current;    // the current entering the device from the node [amps]
-
-        FixedVoltage(float _voltage, int _nodeIndex)
-            : voltage(_voltage)
-            , nodeIndex(_nodeIndex)
-        {
-            initialize();
-        }
-
-        void initialize()
-        {
-            current = 0;
-        }
-    };
-
-
     class Circuit
     {
     private:
@@ -126,16 +103,6 @@ namespace Analog
         std::vector<Resistor> resistorList;
         std::vector<Capacitor> capacitorList;
         std::vector<OpAmp> opAmpList;
-        std::vector<FixedVoltage> fixedVoltageList;
-
-        void assignFixedVoltage(int nodeIndex, float voltage)
-        {
-            Node& node = nodeList.at(nodeIndex);
-            if (node.forced)
-                throw std::logic_error("Node voltage forced to conflicting values.");
-            node.forced = true;
-            node.voltage = voltage;
-        }
 
     public:
         const float vpos = +12;       // positive supply voltage fed to all op-amps
@@ -158,15 +125,25 @@ namespace Analog
 
             for (OpAmp& o : opAmpList)
                 o.initialize();
-
-            for (FixedVoltage& f : fixedVoltageList)
-                f.initialize();
         }
 
-        FixedVoltage& addFixedVoltage(int nodeIndex, float voltage)
+        float& allocateForcedVoltageNode(int nodeIndex)
         {
-            fixedVoltageList.push_back(FixedVoltage(voltage, nodeIndex));
-            return fixedVoltageList.back();
+            Node& node = nodeList.at(nodeIndex);
+            if (node.forced)
+                throw std::logic_error("Node voltage was already forced.");
+            node.forced = true;
+            return node.voltage;
+        }
+
+        void setForcedVoltageNode(int nodeIndex, float voltage)
+        {
+            allocateForcedVoltageNode(nodeIndex) = voltage;
+        }
+
+        void setGroundNode(int nodeIndex)
+        {
+            setForcedVoltageNode(nodeIndex, 0.0f);
         }
 
         Resistor& addResistor(float resistance, int aNodeIndex, int bNodeIndex)
@@ -188,13 +165,6 @@ namespace Analog
 
         void solve()
         {
-            // Clear all forced voltages.
-            for (Node& node : nodeList)
-                node.forced = false;
-
-            // Assign fixed voltages. Fail if conflicts found.
-            for (FixedVoltage &fv : fixedVoltageList)
-                assignFixedVoltage(fv.nodeIndex, fv.voltage);
         }
     };
 }

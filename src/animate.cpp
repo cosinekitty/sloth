@@ -27,18 +27,20 @@ static int UnitTest_ResistorFeedback()
     int n1 = circuit.createNode();
     int n2 = circuit.createNode();
 
-    circuit.addFixedVoltage(n0, 1.0f);
+    float &vIn = circuit.allocateForcedVoltageNode(n0);
     circuit.addResistor(1000.0f, n0, n1);
     circuit.addResistor(10000.0f, n1, n2);
     circuit.addOpAmp(n1, n2);
 
+    vIn = 1.0f;
     circuit.solve();
 
-    float vIn = circuit.getNodeVoltage(n0);
-    printf("UnitTest_ResistorFeedback: input voltage = %0.6f V\n", vIn);
-    if (vIn != 1.0f)
+    float vCheck = circuit.getNodeVoltage(n0);
+    printf("UnitTest_ResistorFeedback: input voltage = %0.6f V\n", vCheck);
+    if (vCheck != vIn)
     {
-        printf("FAIL(UnitTest_ResistorFeedback): expected vIn=1, but found %f\n", vIn);
+        printf("FAIL(UnitTest_ResistorFeedback): vIn=%f, but vCheck=%f\n", vIn, vCheck);
+        return 1;
     }
 
     float vOut = circuit.getNodeVoltage(n2);
