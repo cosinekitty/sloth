@@ -127,8 +127,8 @@ namespace Analog
         std::vector<FixedVoltage> fixedVoltageList;
 
     public:
-        float vpos = +12;       // positive supply voltage fed to all op-amps
-        float vneg = -12;       // negative supply voltage fed to all op-amps
+        const float vpos = +12;       // positive supply voltage fed to all op-amps
+        const float vneg = -12;       // negative supply voltage fed to all op-amps
 
         int createNode()
         {
