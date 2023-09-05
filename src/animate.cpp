@@ -21,6 +21,15 @@ static int UnitTest_ResistorFeedback()
 
     Circuit circuit;
 
+    int n0 = circuit.createNode();
+    int n1 = circuit.createNode();
+    int n2 = circuit.createNode();
+
+    circuit.addFixedVoltage(n0, 1.0f);
+    circuit.addResistor(1000.0f, n0, n1);
+    circuit.addResistor(10000.0f, n1, n2);
+    circuit.addOpAmp(n1, n2);
+
     return 0;
 }
 

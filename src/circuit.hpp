@@ -15,64 +15,104 @@ namespace Analog
     struct Node
     {
         float voltage{};    // [volts]
+        bool forced{};      // has a voltage forcer already assigned a required value to this node's voltage?
     };
 
 
-    struct Terminal
+    struct Resistor
     {
-        float current{};    // [amps]
-    };
-
-
-    class Component
-    {
-    public:
-        std::vector<Terminal> terminalList;
-
-        Component(std::size_t nterminals)
-        {
-            terminalList.resize(nterminals);
-        }
-
-        virtual ~Component() {}
-    };
-
-
-    using ComponentRef = std::unique_ptr<Component>;
-
-
-    class Resistor: public Component
-    {
-    public:
+        // Configuration
         float resistance;   // [ohms]
+        int aNodeIndex;
+        int bNodeIndex;
 
-        Resistor(float _resistance)
-            : Component(2)
-            , resistance(_resistance)
+        // Dynamic state
+        float current;      // current into the resistor from node A and out from the resistor to node B [amps]
+
+        Resistor(float _resistance, int _aNodeIndex, int _bNodeIndex)
+            : resistance(_resistance)
+            , aNodeIndex(_aNodeIndex)
+            , bNodeIndex(_bNodeIndex)
         {
+            initialize();
+        }
+
+        void initialize()
+        {
+            current = 0;
         }
     };
 
 
-    class Capacitor: public Component
+    struct Capacitor
     {
-    public:
-        float capacitance;   // [farads]
+        // Configuration
+        float capacitance;  // [farads]
+        int aNodeIndex;
+        int bNodeIndex;
 
-        Capacitor(float _capacitance)
-            : Component(2)
-            , capacitance(_capacitance)
+        // Dynamic state
+        float current;      // [amps]
+        float drop;         // potential drop based on current charge level [volts]
+
+        Capacitor(float _capacitance, int _aNodeIndex, int _bNodeIndex)
+            : capacitance(_capacitance)
+            , aNodeIndex(_aNodeIndex)
+            , bNodeIndex(_bNodeIndex)
         {
+            initialize();
+        }
+
+        void initialize()
+        {
+            current = 0;
+            drop = 0;
         }
     };
 
 
-    class OpAmp: public Component
+    struct OpAmp    // Positive input is always connected to ground, so we don't need to model it.
     {
-    public:
-        OpAmp()
-            : Component(3)
+        // Configuration
+        int negNodeIndex;
+        int outNodeIndex;
+
+        // Dynamic state
+        float current;    // current leaving the output terminal [amps]
+
+        OpAmp(int _negNodeIndex, int _outNodeIndex)
+            : negNodeIndex(_negNodeIndex)
+            , outNodeIndex(_outNodeIndex)
         {
+            initialize();
+        }
+
+        void initialize()
+        {
+            current = 0;
+        }
+    };
+
+
+    struct FixedVoltage
+    {
+        // Configuration
+        float voltage;    // the voltage forced by this device onto the attached node [volts]
+        int nodeIndex;
+
+        // Dynamic state
+        float current;    // the current entering the device from the node [amps]
+
+        FixedVoltage(float _voltage, int _nodeIndex)
+            : voltage(_voltage)
+            , nodeIndex(_nodeIndex)
+        {
+            initialize();
+        }
+
+        void initialize()
+        {
+            current = 0;
         }
     };
 
@@ -81,14 +121,58 @@ namespace Analog
     {
     private:
         std::vector<Node> nodeList;
-        std::vector<ComponentRef> componentList;
+        std::vector<Resistor> resistorList;
+        std::vector<Capacitor> capacitorList;
+        std::vector<OpAmp> opAmpList;
+        std::vector<FixedVoltage> fixedVoltageList;
 
     public:
-        std::size_t add(Component *component)
+        float vpos = +12;       // positive supply voltage fed to all op-amps
+        float vneg = -12;       // negative supply voltage fed to all op-amps
+
+        int createNode()
         {
-            std::size_t index = componentList.size();
-            componentList.push_back(ComponentRef(component));
+            int index = static_cast<int>(nodeList.size());
+            nodeList.push_back(Node());
             return index;
+        }
+
+        void initialize()
+        {
+            for (Resistor& r : resistorList)
+                r.initialize();
+
+            for (Capacitor& c : capacitorList)
+                c.initialize();
+
+            for (OpAmp& o : opAmpList)
+                o.initialize();
+
+            for (FixedVoltage& f : fixedVoltageList)
+                f.initialize();
+        }
+
+        FixedVoltage& addFixedVoltage(int nodeIndex, float voltage)
+        {
+            fixedVoltageList.push_back(FixedVoltage(voltage, nodeIndex));
+            return fixedVoltageList.back();
+        }
+
+        Resistor& addResistor(float resistance, int aNodeIndex, int bNodeIndex)
+        {
+            resistorList.push_back(Resistor(resistance, aNodeIndex, bNodeIndex));
+            return resistorList.back();
+        }
+
+        OpAmp& addOpAmp(int negNodeIndex, int outNodeIndex)
+        {
+            opAmpList.push_back(OpAmp(negNodeIndex, outNodeIndex));
+            return opAmpList.back();
+        }
+
+        float getNodeVoltage(int nodeIndex) const
+        {
+            return nodeList.at(nodeIndex).voltage;
         }
     };
 }
