@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <vector>
+#include <stdexcept>
 
 namespace Analog
 {
@@ -16,6 +17,7 @@ namespace Analog
     {
         float voltage{};    // [volts]
         bool forced{};      // has a voltage forcer already assigned a required value to this node's voltage?
+        // maybe have a solved flag also?
     };
 
 
@@ -126,6 +128,15 @@ namespace Analog
         std::vector<OpAmp> opAmpList;
         std::vector<FixedVoltage> fixedVoltageList;
 
+        void assignFixedVoltage(int nodeIndex, float voltage)
+        {
+            Node& node = nodeList.at(nodeIndex);
+            if (node.forced)
+                throw std::logic_error("Node voltage forced to conflicting values.");
+            node.forced = true;
+            node.voltage = voltage;
+        }
+
     public:
         const float vpos = +12;       // positive supply voltage fed to all op-amps
         const float vneg = -12;       // negative supply voltage fed to all op-amps
@@ -173,6 +184,17 @@ namespace Analog
         float getNodeVoltage(int nodeIndex) const
         {
             return nodeList.at(nodeIndex).voltage;
+        }
+
+        void solve()
+        {
+            // Clear all forced voltages.
+            for (Node& node : nodeList)
+                node.forced = false;
+
+            // Assign fixed voltages. Fail if conflicts found.
+            for (FixedVoltage &fv : fixedVoltageList)
+                assignFixedVoltage(fv.nodeIndex, fv.voltage);
         }
     };
 }

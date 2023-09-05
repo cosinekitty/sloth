@@ -1,4 +1,6 @@
 #include <cstring>
+#include <cstdio>
+#include <cmath>
 #include "circuit.hpp"
 
 static int Animate();
@@ -29,6 +31,25 @@ static int UnitTest_ResistorFeedback()
     circuit.addResistor(1000.0f, n0, n1);
     circuit.addResistor(10000.0f, n1, n2);
     circuit.addOpAmp(n1, n2);
+
+    circuit.solve();
+
+    float vIn = circuit.getNodeVoltage(n0);
+    printf("UnitTest_ResistorFeedback: input voltage = %0.6f V\n", vIn);
+    if (vIn != 1.0f)
+    {
+        printf("FAIL(UnitTest_ResistorFeedback): expected vIn=1, but found %f\n", vIn);
+    }
+
+    float vOut = circuit.getNodeVoltage(n2);
+    printf("UnitTest_ResistorFeedback: output voltage = %0.6f V\n", vOut);
+
+    float diff = std::abs(vOut - 10.0f);
+    if (diff > 1.0e-6)
+    {
+        printf("FAIL(UnitTest_ResistorFeedback): EXCESSIVE output voltage error = %f\n", diff);
+        return 1;
+    }
 
     return 0;
 }
