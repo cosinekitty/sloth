@@ -108,20 +108,39 @@ static int UnitTest_VoltageDivider()
 
     Circuit circuit;
 
-    int np = circuit.createFixedVoltageNode(3.0);
+    const double vpos = 3.0;
+    const double res1 = 1000.0;
+
+    int np = circuit.createFixedVoltageNode(vpos);
     int n1 = circuit.createNode();
     int n2 = circuit.createNode();
     int ng = circuit.createGroundNode();
 
-    circuit.addResistor(1000, np, n1);
-    circuit.addResistor(2000, n1, n2);
-    circuit.addResistor(2000, n1, n2);
-    circuit.addResistor(1000, n2, ng);
+    const Resistor& r0 = circuit.addResistor(res1, np, n1);
+    const Resistor& r1 = circuit.addResistor(2*res1, n1, n2);
+    circuit.addResistor(2*res1, n1, n2);
+    circuit.addResistor(res1, n2, ng);
 
     if (CheckSolution(circuit, "VoltageDivider1", n1, 2.0)) return 1;
     if (CheckSolution(circuit, "VoltageDivider2", n2, 1.0)) return 1;
 
-    printf("VoltageDivider: PASS\n");
+    const double i0 = vpos / (3 * res1);
+    double diff = ABS(r0.current - i0);
+    if (diff > 1.0e-9)
+    {
+        printf("FAIL(VoltageDivider): EXCESSIVE r0.current error = %lg; r0.current = %lg\n", diff, r0.current);
+        return 1;
+    }
+
+    const double i1 = i0 / 2.0;     // half the current goes through the parallel resistor
+    diff = ABS(r1.current - i1);
+    if (diff > 1.0e-9)
+    {
+        printf("FAIL(VoltageDivider): EXCESSIVE r1.current error = %lg\n", diff);
+        return 1;
+    }
+
+    printf("VoltageDivider: PASS (current diff = %lg)\n", diff);
     return 0;
 }
 

@@ -339,7 +339,8 @@ namespace Analog
             v(aNodeIndex);
             v(bNodeIndex);
             resistorList.push_back(Resistor(resistance, v(aNodeIndex), v(bNodeIndex)));
-            return resistorList.back();
+            Resistor& r = resistorList.back();
+            return r;
         }
 
         Capacitor& addCapacitor(double capacitance, int aNodeIndex, int bNodeIndex)
