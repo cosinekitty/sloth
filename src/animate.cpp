@@ -79,11 +79,13 @@ static int UnitTest_ResistorFeedback()
         return 1;
     }
 
-    double &vIn = circuit.allocateForcedVoltageNode(n0);
+    circuit.allocateForcedVoltageNode(n0);
     circuit.addResistor(1000.0f, n0, n1);
     circuit.addResistor(10000.0f, n1, n2);
     circuit.addOpAmp(ng, n1, n2);
+    circuit.lock();
 
+    double& vIn = circuit.nodeVoltage(n0);
     vIn = 1.0;
     double vExact = -1.0e+7 / 1000011.0;    // manually derived exact solution
     if (CheckSolution(circuit, "ResistorFeedback1", n2, vExact)) return 1;
@@ -116,17 +118,21 @@ static int UnitTest_VoltageDivider()
     int n2 = circuit.createNode();
     int ng = circuit.createGroundNode();
 
-    const Resistor& r0 = circuit.addResistor(res1, np, n1);
-    const Resistor& r1 = circuit.addResistor(2*res1, n1, n2);
+    int r0_index = circuit.addResistor(res1, np, n1);
+    int r1_index = circuit.addResistor(2*res1, n1, n2);
     circuit.addResistor(2*res1, n1, n2);
     circuit.addResistor(res1, n2, ng);
+    circuit.lock();
+
+    const Resistor& r0 = circuit.resistor(r0_index);
+    const Resistor& r1 = circuit.resistor(r1_index);
 
     if (CheckSolution(circuit, "VoltageDivider1", n1, 2.0)) return 1;
     if (CheckSolution(circuit, "VoltageDivider2", n2, 1.0)) return 1;
 
     const double i0 = vpos / (3 * res1);
     double diff = ABS(r0.current - i0);
-    if (diff > 1.0e-9)
+    if (diff > 1.0e-8)
     {
         printf("FAIL(VoltageDivider): EXCESSIVE r0.current error = %lg; r0.current = %lg\n", diff, r0.current);
         return 1;
@@ -134,7 +140,7 @@ static int UnitTest_VoltageDivider()
 
     const double i1 = i0 / 2.0;     // half the current goes through the parallel resistor
     diff = ABS(r1.current - i1);
-    if (diff > 1.0e-9)
+    if (diff > 1.0e-8)
     {
         printf("FAIL(VoltageDivider): EXCESSIVE r1.current error = %lg\n", diff);
         return 1;

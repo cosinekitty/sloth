@@ -116,6 +116,7 @@ namespace Analog
     class Circuit
     {
     private:
+        bool isLocked = false;      // must lock the circuit before accessing its components
         std::vector<Node> nodeList;
         std::vector<Resistor> resistorList;
         std::vector<Capacitor> capacitorList;
@@ -288,10 +289,33 @@ namespace Analog
             return -1.0;    // indicate failure: negative scores are not possible
         }
 
+        void confirmLocked()
+        {
+            if (!isLocked)
+                throw std::logic_error("You must lock the circuit before accessing references to nodes or components.");
+        }
+
+        void confirmUnlocked()
+        {
+            if (isLocked)
+                throw std::logic_error("Once the circuit is locked, you cannot add new nodes or components.");
+        }
+
     public:
         const double OPAMP_GAIN = 1.0e+6;
         const double VPOS = +12;       // positive supply voltage fed to all op-amps
         const double VNEG = -12;       // negative supply voltage fed to all op-amps
+
+        void lock()
+        {
+            // Locking the circuit prevents changing it,
+            // which allows accessing references to components inside it.
+            // This concept was necessary to fix a bug where I returned a
+            // reference to a resistor (for example), then added another resistor.
+            // The new resistor resized the resistorList, which left the first
+            // resistor referencing freed memory!
+            isLocked = true;
+        }
 
         void initialize()
         {
@@ -307,25 +331,25 @@ namespace Analog
 
         int createNode()
         {
+            confirmUnlocked();
             int index = static_cast<int>(nodeList.size());
             nodeList.push_back(Node());
             return index;
         }
 
-        double& allocateForcedVoltageNode(int nodeIndex)
+        void allocateForcedVoltageNode(int nodeIndex)
         {
             Node& node = nodeList.at(nodeIndex);
             if (node.forced)
                 throw std::logic_error("Node voltage was already forced.");
             node.forced = true;
-            return node.voltage;
         }
 
         int createFixedVoltageNode(double voltage)
         {
             int nodeIndex = createNode();
-            double &nodeVoltage = allocateForcedVoltageNode(nodeIndex);
-            nodeVoltage = voltage;
+            allocateForcedVoltageNode(nodeIndex);
+            nodeList.at(nodeIndex).voltage = voltage;
             return nodeIndex;
         }
 
@@ -334,30 +358,32 @@ namespace Analog
             return createFixedVoltageNode(0.0);
         }
 
-        Resistor& addResistor(double resistance, int aNodeIndex, int bNodeIndex)
+        int addResistor(double resistance, int aNodeIndex, int bNodeIndex)
         {
+            confirmUnlocked();
             v(aNodeIndex);
             v(bNodeIndex);
             resistorList.push_back(Resistor(resistance, v(aNodeIndex), v(bNodeIndex)));
-            Resistor& r = resistorList.back();
-            return r;
+            return resistorList.size() - 1;
         }
 
-        Capacitor& addCapacitor(double capacitance, int aNodeIndex, int bNodeIndex)
+        int addCapacitor(double capacitance, int aNodeIndex, int bNodeIndex)
         {
+            confirmUnlocked();
             v(aNodeIndex);
             v(bNodeIndex);
             capacitorList.push_back(Capacitor(capacitance, aNodeIndex, bNodeIndex));
-            return capacitorList.back();
+            return capacitorList.size() - 1;
         }
 
-        OpAmp& addOpAmp(int posNodeIndex, int negNodeIndex, int outNodeIndex)
+        int addOpAmp(int posNodeIndex, int negNodeIndex, int outNodeIndex)
         {
+            confirmUnlocked();
             v(posNodeIndex);
             v(negNodeIndex);
             allocateForcedVoltageNode(outNodeIndex);
             opAmpList.push_back(OpAmp(posNodeIndex, negNodeIndex, outNodeIndex));
-            return opAmpList.back();
+            return opAmpList.size() - 1;
         }
 
         int getNodeCount() const
@@ -368,6 +394,30 @@ namespace Analog
         double getNodeVoltage(int nodeIndex) const
         {
             return nodeList.at(nodeIndex).voltage;
+        }
+
+        double& nodeVoltage(int nodeIndex)
+        {
+            confirmLocked();
+            return nodeList.at(nodeIndex).voltage;
+        }
+
+        Resistor& resistor(int index)
+        {
+            confirmLocked();
+            return resistorList.at(index);
+        }
+
+        Capacitor& capacitor(int index)
+        {
+            confirmLocked();
+            return capacitorList.at(index);
+        }
+
+        OpAmp& opAmp(int index)
+        {
+            confirmLocked();
+            return opAmpList.at(index);
         }
 
         SolutionResult update(double sampleRateHz)
