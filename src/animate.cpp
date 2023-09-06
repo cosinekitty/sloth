@@ -26,10 +26,12 @@ real_t v(real_t x, const char *fn, int lnum)
 
 static int Animate();
 static int UnitTest_ResistorFeedback();
+static int UnitTest_VoltageDivider();
 
 int main(int argc, const char *argv[])
 {
     if (UnitTest_ResistorFeedback()) return 1;
+    if (UnitTest_VoltageDivider()) return 1;
     if (argc == 2 && !strcmp(argv[1], "test"))
         return 0;   // stop after unit tests
 
@@ -93,6 +95,33 @@ static int UnitTest_ResistorFeedback()
     if (CheckSolution(circuit, "ResistorFeedback3", n2, circuit.VPOS)) return 1;
 
     printf("ResistorFeedback: PASS\n");
+    return 0;
+}
+
+
+static int UnitTest_VoltageDivider()
+{
+    using namespace std;
+    using namespace Analog;
+
+    // Exercise series and parallel resistors combined in a voltage divider pattern.
+
+    Circuit circuit;
+
+    int np = circuit.createFixedVoltageNode(3.0);
+    int n1 = circuit.createNode();
+    int n2 = circuit.createNode();
+    int ng = circuit.createGroundNode();
+
+    circuit.addResistor(1000, np, n1);
+    circuit.addResistor(2000, n1, n2);
+    circuit.addResistor(2000, n1, n2);
+    circuit.addResistor(1000, n2, ng);
+
+    if (CheckSolution(circuit, "VoltageDivider1", n1, 2.0)) return 1;
+    if (CheckSolution(circuit, "VoltageDivider2", n2, 1.0)) return 1;
+
+    printf("VoltageDivider: PASS\n");
     return 0;
 }
 
