@@ -83,7 +83,8 @@ static int UnitTest_ResistorFeedback()
     circuit.addOpAmp(ng, n1, n2);
 
     vIn = 1.0;
-    if (CheckSolution(circuit, "ResistorFeedback1", n2, -10.0f)) return 1;
+    double vExact = -1.0e+7 / 1000011.0;    // manually derived exact solution
+    if (CheckSolution(circuit, "ResistorFeedback1", n2, vExact)) return 1;
 
     vIn = 2.0;
     if (CheckSolution(circuit, "ResistorFeedback2", n2, circuit.VNEG)) return 1;
