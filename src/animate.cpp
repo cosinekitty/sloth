@@ -27,11 +27,14 @@ real_t v(real_t x, const char *fn, int lnum)
 static int Animate();
 static int UnitTest_ResistorFeedback();
 static int UnitTest_VoltageDivider();
+static int UnitTest_ResistorCapacitorTimeConstant();
 
 int main(int argc, const char *argv[])
 {
     if (UnitTest_ResistorFeedback()) return 1;
     if (UnitTest_VoltageDivider()) return 1;
+    if (UnitTest_ResistorCapacitorTimeConstant()) return 1;
+
     if (argc == 2 && !strcmp(argv[1], "test"))
         return 0;   // stop after unit tests
 
@@ -63,7 +66,6 @@ static int CheckSolution(
 
 static int UnitTest_ResistorFeedback()
 {
-    using namespace std;
     using namespace Analog;
 
     Circuit circuit;
@@ -103,7 +105,6 @@ static int UnitTest_ResistorFeedback()
 
 static int UnitTest_VoltageDivider()
 {
-    using namespace std;
     using namespace Analog;
 
     // Exercise series and parallel resistors combined in a voltage divider pattern.
@@ -147,6 +148,69 @@ static int UnitTest_VoltageDivider()
     }
 
     printf("VoltageDivider: PASS (current diff = %lg)\n", diff);
+    return 0;
+}
+
+
+static int UnitTest_ResistorCapacitorTimeConstant()
+{
+    using namespace Analog;
+
+    // Define a circuit consisting of a resistor in series with a capacitor.
+    // The top side of the resistor connects to +1V.
+    // The bottom side of the resistor connects to the top of the capacitor.
+    // The bottom of the capacitor connects to ground.
+    // The capacitor voltage starts at 0V.
+    // We want to keep the math simple, so let R = 1 ohm, F = 1 farad.
+
+    const double resistance = 1.0;
+    const double capacitance = 1.0;
+    const double rc = resistance * capacitance;
+    const double supplyVoltage = 1.0;
+
+    Circuit circuit;
+    int n0 = circuit.createFixedVoltageNode(supplyVoltage);
+    int n1 = circuit.createNode();
+    int n2 = circuit.createGroundNode();
+    circuit.addResistor(resistance, n0, n1);
+    circuit.addCapacitor(capacitance, n1, n2);
+    circuit.lock();
+
+    const char *filename = "output/rc.txt";
+    FILE *outfile = fopen(filename, "wt");
+    if (outfile == nullptr)
+    {
+        printf("ResistorCapacitorTimeConstant: Cannot open output file: %s\n", filename);
+        return 1;
+    }
+
+    fprintf(outfile, "sample,time,iterations,voltage,expected,diff\n");
+
+    // Charge up the capacitor by running for a simulated 3 seconds.
+    const int nsamples = SAMPLE_RATE * 3;
+    for (int sample = 0; sample < nsamples; ++sample)
+    {
+        SolutionResult result = circuit.update(SAMPLE_RATE);
+
+        double time = static_cast<double>(sample) / SAMPLE_RATE;
+        double voltage = circuit.getNodeVoltage(n1);
+
+        // Compare to theoretical voltage.
+        double expected = supplyVoltage*(1.0 - std::exp(-time/rc));
+
+        double diff = voltage - expected;
+
+        // Every 0.01 seconds (441 samples), write a CSV record to the output file.
+        if (sample % (SAMPLE_RATE / 100) == 0)
+        {
+            fprintf(outfile, "%d,%0.6lf,%d,%0.16lg,%0.16lg,%0.16lg\n",
+                sample, time, result.iterations, voltage, expected, diff);
+        }
+    }
+
+    fclose(outfile);
+
+    printf("ResistorCapacitorTimeConstant: PASS\n");
     return 0;
 }
 
