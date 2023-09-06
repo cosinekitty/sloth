@@ -101,6 +101,18 @@ namespace Analog
     };
 
 
+    struct SolutionResult
+    {
+        int iterations;
+        double score;
+
+        SolutionResult(int _iterations, double _score)
+            : iterations(_iterations)
+            , score(_score)
+            {}
+    };
+
+
     class Circuit
     {
     private:
@@ -182,9 +194,9 @@ namespace Analog
             return score;
         }
 
-        bool adjustNodeVoltages(double dt)
+        double adjustNodeVoltages(double dt)
         {
-            const double SCORE_TOLERANCE = 1.0e-12;     // RMS = 1 microamp
+            const double SCORE_TOLERANCE = 1.0e-16;     // amps^2
             const double DELTA_VOLTAGE = 1.0e-9;        // step size = 1 nanovolt
 
             // Measure the simulation error before changing any unforced node voltages.
@@ -192,7 +204,13 @@ namespace Analog
 
             // If the score is good enough, consider the update successful.
             if (score1 < SCORE_TOLERANCE)
-                return true;
+            {
+                // Indicate success and report the score.
+                // Take the square root of the sum-of-squares to report
+                // an RMS current error value. It is easier to interpret
+                // the result when expressed in amps, rather than amps^2.
+                return std::sqrt(score1);
+            }
 
             // Calculate partial derivatives of how much each node's voltage
             // affects the simulation error.
@@ -248,7 +266,10 @@ namespace Analog
 
             // We should never lose ground. Otherwise we risk not converging.
             if (score3 >= score1)
+            {
+                printf("score change = %lg\n", score3 - score1);
                 throw std::logic_error("Solver is losing ground.");
+            }
 
             // The naive idea would be to assume everything is linear and that we
             // can extrapolate where we would hit zero error.
@@ -257,14 +278,14 @@ namespace Analog
             // or worse, becoming unstable and diverging.
             // We have just stepped DELTA_VOLTAGE along the hypervector.
             // What multiple of that distance would naively bring the error to zero?
-            const double ALPHA = 0.3;   // fraction of the way to "jump" toward the naive ideal value
+            const double ALPHA = 0.6;   // fraction of the way to "jump" toward the naive ideal value
 
             double step = ALPHA * (score1 / (score1 - score3));
             for (Node& n : nodeList)
                 if (!n.forced)
                     n.voltage = n.savedVoltage + (step * n.slope);
 
-            return false;
+            return -1.0;    // indicate failure: negative scores are not possible
         }
 
     public:
@@ -348,7 +369,7 @@ namespace Analog
             return nodeList.at(nodeIndex).voltage;
         }
 
-        int update(double sampleRateHz)
+        SolutionResult update(double sampleRateHz)
         {
             const double dt = 1.0 / sampleRateHz;
 
@@ -360,8 +381,11 @@ namespace Analog
 
             const int limit = 100;
             for (int count = 1; count <= limit; ++count)
-                if (adjustNodeVoltages(dt))
-                    return count;       // return count so the caller can measure convergence efficiency
+            {
+                double score = adjustNodeVoltages(dt);
+                if (score >= 0.0)
+                    return SolutionResult(count, score);
+            }
 
             throw std::logic_error("Circuit solver failed to converge on a solution.");
         }

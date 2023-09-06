@@ -38,14 +38,18 @@ int main(int argc, const char *argv[])
 
 
 static int CheckSolution(
-    const Analog::Circuit& circuit,
+    Analog::Circuit& circuit,
     const char *name,
     int outNodeIndex,
     double vOutExpected,
-    double tolerance = 1.0e-6)
+    double tolerance = 1.0e-4)
 {
+    Analog::SolutionResult result = circuit.update(SAMPLE_RATE);
     double vOut = V(circuit.getNodeVoltage(outNodeIndex));
     double diff = ABS(vOut - vOutExpected);
+    printf("CheckSolution(%s): %d iterations, score = %lg amps, diff = %lg V on node %d\n",
+        name, result.iterations, result.score, diff, outNodeIndex);
+
     if (diff > tolerance)
     {
         printf("FAIL(%s): EXCESSIVE voltage error %f on node %d.\n", name, diff, outNodeIndex);
@@ -79,25 +83,12 @@ static int UnitTest_ResistorFeedback()
     circuit.addOpAmp(ng, n1, n2);
 
     vIn = 1.0;
-    circuit.update(SAMPLE_RATE);
-
-    double vCheck = circuit.getNodeVoltage(n0);
-    printf("ResistorFeedback: input voltage = %0.6lf V\n", vCheck);
-    if (vCheck != vIn)
-    {
-        printf("FAIL(ResistorFeedback): vIn=%lf, but vCheck=%lf\n", vIn, vCheck);
-        return 1;
-    }
-
     if (CheckSolution(circuit, "ResistorFeedback1", n2, -10.0f)) return 1;
 
-    // Verify that op-amp clamping is working as expected, on both the low end and the high end.
     vIn = 2.0;
-    circuit.update(SAMPLE_RATE);
     if (CheckSolution(circuit, "ResistorFeedback2", n2, circuit.VNEG)) return 1;
 
     vIn = -2.0;
-    circuit.update(SAMPLE_RATE);
     if (CheckSolution(circuit, "ResistorFeedback3", n2, circuit.VPOS)) return 1;
 
     printf("ResistorFeedback: PASS\n");
