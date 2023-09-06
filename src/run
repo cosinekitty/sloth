@@ -1,9 +1,25 @@
 #!/bin/bash
+
+if [[ "$1" == "GitHubActions" ]]; then
+    # GitHub Actions is using a different version of cppcheck than I have on my local system.
+    # It does not flag errors about missing system includes like my system does.
+    # So if I try to suppress it there, it causes another error that says it doesn't need to be suppressed!
+    CPPCHECKOPT=
+    ANIMATEOPT=test
+else
+    CPPCHECKOPT=--suppress=missingIncludeSystem
+    ANIMATEOPT=$1
+fi
+
+cppcheck --error-exitcode=9 --inline-suppr ${CPPCHECKOPT} --suppress=useStlAlgorithm -I .  --enable=all . || exit 1
+
+
 if [[ "$1" == "debug" ]]; then
     CPPOPT="-Og -g"
 else
     CPPOPT="-O3"
 fi
 g++ ${CPPOPT} -Wall -Werror -o animate animate.cpp || exit 1
-./animate || exit 1
+
+./animate ${ANIMATEOPT} || exit 1
 exit 0

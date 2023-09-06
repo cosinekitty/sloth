@@ -123,7 +123,7 @@ namespace Analog
 
         int v(int nodeIndex) const
         {
-            nodeList.at(nodeIndex);     // Validate the node index. Throw an exception if invalid.
+            (void) nodeList.at(nodeIndex);     // Validate the node index. Throw an exception if invalid.
             return nodeIndex;
         }
 
@@ -132,8 +132,8 @@ namespace Analog
             // Based on the voltage at each op-amp's input, calculate its output voltage.
             for (OpAmp& o : opAmpList)
             {
-                Node& posNode = nodeList.at(o.posNodeIndex);
-                Node& negNode = nodeList.at(o.negNodeIndex);
+                const Node& posNode = nodeList.at(o.posNodeIndex);
+                const Node& negNode = nodeList.at(o.negNodeIndex);
                 Node& outNode = nodeList.at(o.outNodeIndex);
 
                 outNode.voltage = OPAMP_GAIN * (posNode.voltage - negNode.voltage);
@@ -179,7 +179,7 @@ namespace Analog
             // Store the sourced current coming out of op-amp outputs.
             for (OpAmp& o : opAmpList)
             {
-                Node &n = nodeList.at(o.outNodeIndex);
+                const Node &n = nodeList.at(o.outNodeIndex);
                 o.current = -n.current;
                 // Node current will be zeroed out below. No need to do it here also.
             }
@@ -247,7 +247,7 @@ namespace Analog
             // toward the steepest direction of decreased system error.
             // Normalize the vector such that its magnitude is still DELTA_VOLTAGE.
             double magnitude = 0;
-            for (Node& n : nodeList)
+            for (const Node& n : nodeList)
                 if (!n.forced)
                     magnitude += n.slope * n.slope;
             magnitude = std::sqrt(magnitude);

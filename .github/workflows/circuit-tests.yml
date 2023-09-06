@@ -1,0 +1,11 @@
+name: Sloth Unit Tests
+on: [push]
+jobs:
+  SlothTest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install cppcheck
+      run: sudo apt install -y cppcheck
+    - name: Sloth circuit simulator tests
+      run: cd src && ./run GitHubActions
