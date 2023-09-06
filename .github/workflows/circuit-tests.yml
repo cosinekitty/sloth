@@ -8,4 +8,5 @@ jobs:
     - name: Install cppcheck
       run: sudo apt install -y cppcheck
     - name: Sloth circuit simulator tests
-      run: cd src && ./run GitHubActions
+      run: cd src && ./run test
+

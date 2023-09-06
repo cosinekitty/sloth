@@ -99,5 +99,6 @@ static int UnitTest_ResistorFeedback()
 
 static int Animate()
 {
+    printf("INFO: Animation not yet implemented.\n");
     return 0;
 }
