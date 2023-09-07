@@ -189,6 +189,8 @@ static int UnitTest_ResistorCapacitorTimeConstant()
     // Charge up the capacitor by running for a simulated 3 seconds.
     const int nsamples = SAMPLE_RATE * 3;
     int iterations = 0;
+    int maxIterations = 0;
+    int totalIterations = 0;
     double score = 0.0;
     for (int sample = 0; sample < nsamples; ++sample)
     {
@@ -211,12 +213,15 @@ static int UnitTest_ResistorCapacitorTimeConstant()
 
         SolutionResult result = circuit.update(SAMPLE_RATE);
         iterations = result.iterations;
+        maxIterations = std::max(maxIterations, iterations);
+        totalIterations += iterations;
         score = result.score;
     }
 
     fclose(outfile);
 
-    printf("ResistorCapacitorTimeConstant: PASS\n");
+    double meanIterations = static_cast<double>(totalIterations) / nsamples;
+    printf("ResistorCapacitorTimeConstant: PASS (mean iterations = %0.3lf, max = %d)\n", meanIterations, maxIterations);
     return 0;
 }
 
