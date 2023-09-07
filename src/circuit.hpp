@@ -14,10 +14,11 @@
 
 namespace Analog
 {
+    const int VOLTAGE_HISTORY = 3;
+
     struct Node
     {
-        double prevVoltage{};   // solution for voltage in the previous sample. [volts]
-        double voltage{};       // guess/solution for voltage in the current sample. [volts]
+        double voltage[VOLTAGE_HISTORY]{};    // voltage[0] = current, voltage[1] = previous, ... [volts]
         double savedVoltage{};  // temporary scratch-pad for holding pre-mutated voltage [volts]
         double current{};       // net current flowing into the node. must be zero to achieve a solution. [amps]
         double slope{};         // delta E, where E = sum(current^2); gradient steepness from changing this node's voltage
@@ -136,11 +137,11 @@ namespace Analog
                 const Node& negNode = nodeList.at(o.negNodeIndex);
                 Node& outNode = nodeList.at(o.outNodeIndex);
 
-                outNode.voltage = OPAMP_GAIN * (posNode.voltage - negNode.voltage);
-                if (outNode.voltage < VNEG)
-                    outNode.voltage = VNEG;
-                else if (outNode.voltage > VPOS)
-                    outNode.voltage = VPOS;
+                outNode.voltage[0] = OPAMP_GAIN * (posNode.voltage[0] - negNode.voltage[0]);
+                if (outNode.voltage[0] < VNEG)
+                    outNode.voltage[0] = VNEG;
+                else if (outNode.voltage[0] > VPOS)
+                    outNode.voltage[0] = VPOS;
             }
 
             // Add up currents flowing into each node.
@@ -153,7 +154,7 @@ namespace Analog
             {
                 Node& n1 = nodeList.at(r.aNodeIndex);
                 Node& n2 = nodeList.at(r.bNodeIndex);
-                r.current = (n1.voltage - n2.voltage) / r.resistance;
+                r.current = (n1.voltage[0] - n2.voltage[0]) / r.resistance;
                 n1.current -= r.current;
                 n2.current += r.current;
             }
@@ -163,7 +164,7 @@ namespace Analog
             {
                 Node& n1 = nodeList.at(c.aNodeIndex);
                 Node& n2 = nodeList.at(c.bNodeIndex);
-                double dV = (n1.voltage - n2.voltage) - (n1.prevVoltage - n2.prevVoltage);
+                double dV = (n1.voltage[0] - n2.voltage[0]) - (n1.voltage[1] - n2.voltage[1]);
                 c.current = c.capacitance * (dV/dt);
                 n1.current -= c.current;
                 n2.current += c.current;
@@ -218,7 +219,7 @@ namespace Analog
             {
                 if (!n.forced)
                 {
-                    n.savedVoltage = n.voltage;
+                    n.savedVoltage = n.voltage[0];
 
                     // Tweak the voltage a tiny amount on this node.
                     // FIXFIXFIX: because of op-amps, slopes may not converge
@@ -226,7 +227,7 @@ namespace Analog
                     // "linear amplifier mode" and "comparator mode".
                     // I might have to try increasing and decreasing the voltage,
                     // pick whichever one reduces the overall simulation error.
-                    n.voltage += DELTA_VOLTAGE;
+                    n.voltage[0] += DELTA_VOLTAGE;
 
                     // See how much change it makes to the solution score.
                     // We are looking for dE/dV, where E = error and V = voltage.
@@ -238,7 +239,7 @@ namespace Analog
                     n.slope = score2 - score1;
 
                     // Restore the original voltage.
-                    n.voltage = n.savedVoltage;
+                    n.voltage[0] = n.savedVoltage;
                 }
             }
 
@@ -256,9 +257,9 @@ namespace Analog
             {
                 if (!n.forced)
                 {
-                    n.savedVoltage = n.voltage;
+                    n.savedVoltage = n.voltage[0];
                     n.slope *= -DELTA_VOLTAGE / magnitude;  // negative to go "downhill"
-                    n.voltage += n.slope;
+                    n.voltage[0] += n.slope;
                 }
             }
 
@@ -283,7 +284,7 @@ namespace Analog
             double step = ALPHA * (score1 / (score1 - score3));
             for (Node& n : nodeList)
                 if (!n.forced)
-                    n.voltage = n.savedVoltage + (step * n.slope);
+                    n.voltage[0] = n.savedVoltage + (step * n.slope);
 
             return -1.0;    // indicate failure: negative scores are not possible
         }
@@ -329,7 +330,8 @@ namespace Analog
 
             for (Node& n : nodeList)
                 if (!n.forced)
-                    n.prevVoltage = n.voltage = 0;
+                    for (int i = 0; i < VOLTAGE_HISTORY; ++i)
+                        n.voltage[i] = 0;
         }
 
         int createNode()
@@ -352,7 +354,9 @@ namespace Analog
         {
             int nodeIndex = createNode();
             allocateForcedVoltageNode(nodeIndex);
-            nodeList.at(nodeIndex).voltage = voltage;
+            Node& n = nodeList.at(nodeIndex);
+            for (int i = 0; i < VOLTAGE_HISTORY; ++i)
+                n.voltage[i] = voltage;
             return nodeIndex;
         }
 
@@ -396,13 +400,13 @@ namespace Analog
 
         double getNodeVoltage(int nodeIndex) const
         {
-            return nodeList.at(nodeIndex).voltage;
+            return nodeList.at(nodeIndex).voltage[0];
         }
 
         double& nodeVoltage(int nodeIndex)
         {
             confirmLocked();
-            return nodeList.at(nodeIndex).voltage;
+            return nodeList.at(nodeIndex).voltage[0];
         }
 
         Resistor& resistor(int index)
@@ -427,11 +431,14 @@ namespace Analog
         {
             const double dt = 1.0 / sampleRateHz;
 
-            // Copy latest node voltages into previous node voltages.
+            // Shift voltage history by one sample.
             // This is needed to calculate capacitor currents, which are based on
             // the rate of change of the voltage across each capacitor: i = C*(dV/dt).
+            // It is also used to extrapolate an initial guess for the next voltage
+            // on each sample.
             for (Node& node : nodeList)
-                node.prevVoltage = node.voltage;
+                for (int i = VOLTAGE_HISTORY-1; i > 0; --i)
+                    node.voltage[i] = node.voltage[i-1];
 
             const int RETRY_LIMIT = 100;
             for (int count = 1; count <= RETRY_LIMIT; ++count)
