@@ -23,6 +23,13 @@ namespace Analog
         double current{};       // net current flowing into the node. must be zero to achieve a solution. [amps]
         double slope{};         // delta E, where E = sum(current^2); gradient steepness from changing this node's voltage
         bool forced = false;    // has a voltage forcer already assigned a required value to this node's voltage?
+
+        void initialize()
+        {
+            if (!forced)
+                for (int i = 0; i < VOLTAGE_HISTORY; ++i)
+                    voltage[i] = 0;
+        }
     };
 
 
@@ -329,9 +336,7 @@ namespace Analog
                 o.initialize();
 
             for (Node& n : nodeList)
-                if (!n.forced)
-                    for (int i = 0; i < VOLTAGE_HISTORY; ++i)
-                        n.voltage[i] = 0;
+                n.initialize();
         }
 
         int createNode()
