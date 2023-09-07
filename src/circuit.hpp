@@ -135,6 +135,21 @@ namespace Analog
             return nodeIndex;
         }
 
+        void extrapolateNodeVoltages()
+        {
+            // Try to give the solver an initial boost by extrapolating the recent
+            // trend in voltages to the next sample.
+
+            for (Node& n : nodeList)
+            {
+                if (!n.forced)
+                {
+                    double dV = n.voltage[1] - n.voltage[2];
+                    n.voltage[0] = n.voltage[1] + dV;
+                }
+            }
+        }
+
         double updateCurrents(double dt)     // returns sum-of-squares of node current discrepancies
         {
             // Based on the voltage at each op-amp's input, calculate its output voltage.
@@ -444,6 +459,8 @@ namespace Analog
             for (Node& node : nodeList)
                 for (int i = VOLTAGE_HISTORY-1; i > 0; --i)
                     node.voltage[i] = node.voltage[i-1];
+
+            extrapolateNodeVoltages();
 
             const int RETRY_LIMIT = 100;
             for (int count = 1; count <= RETRY_LIMIT; ++count)
