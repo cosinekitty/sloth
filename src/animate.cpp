@@ -192,6 +192,7 @@ static int UnitTest_ResistorCapacitorTimeConstant()
     int maxIterations = 0;
     int totalIterations = 0;
     double score = 0.0;
+    double maxdiff = 0.0;
     for (int sample = 0; sample < nsamples; ++sample)
     {
         double time = static_cast<double>(sample) / SAMPLE_RATE;
@@ -201,6 +202,7 @@ static int UnitTest_ResistorCapacitorTimeConstant()
         double expected = supplyVoltage*(1.0 - std::exp(-time/rc));
 
         double diff = voltage - expected;
+        maxdiff = std::max(maxdiff, ABS(diff));
 
         // Every 0.01 seconds, write a CSV record to the output file.
         if (sample % (SAMPLE_RATE / 100) == 0)
@@ -220,8 +222,14 @@ static int UnitTest_ResistorCapacitorTimeConstant()
 
     fclose(outfile);
 
+    if (maxdiff > 0.0081)
+    {
+        printf("ResistorCapacitorTimeConstant: FAIL - excessive capacitor voltage error = %0.6lf\n", maxdiff);
+        return 1;
+    }
+
     double meanIterations = static_cast<double>(totalIterations) / nsamples;
-    printf("ResistorCapacitorTimeConstant: PASS (mean iterations = %0.3lf, max = %d)\n", meanIterations, maxIterations);
+    printf("ResistorCapacitorTimeConstant: PASS (mean iterations = %0.3lf, max = %d, capacitor voltage error = %lg)\n", meanIterations, maxIterations, maxdiff);
     return 0;
 }
 
