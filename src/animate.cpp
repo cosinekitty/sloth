@@ -200,10 +200,10 @@ static int UnitTest_ResistorCapacitorTimeConstant()
 
         double diff = voltage - expected;
 
-        // Every 0.01 seconds (441 samples), write a CSV record to the output file.
+        // Every 0.01 seconds, write a CSV record to the output file.
         if (sample % (SAMPLE_RATE / 100) == 0)
         {
-            fprintf(outfile, "%d,%0.6lf,%d,%lg,%0.16lg,%0.16lg,%0.16lg\n",
+            fprintf(outfile, "%d,%0.2lf,%d,%lg,%0.16lg,%0.16lg,%0.16lg\n",
                 sample, time, iterations, score, voltage, expected, diff);
 
             fflush(outfile);
