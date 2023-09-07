@@ -116,7 +116,7 @@ namespace Analog
     class Circuit
     {
     private:
-        bool isLocked = false;      // must lock the circuit before accessing its components
+        bool isLocked = false;          // must lock the circuit before accessing its components
         std::vector<Node> nodeList;
         std::vector<Resistor> resistorList;
         std::vector<Capacitor> capacitorList;
@@ -430,8 +430,8 @@ namespace Analog
             for (Node& node : nodeList)
                 node.prevVoltage = node.voltage;
 
-            const int limit = 100;
-            for (int count = 1; count <= limit; ++count)
+            const int RETRY_LIMIT = 100;
+            for (int count = 1; count <= RETRY_LIMIT; ++count)
             {
                 double score = adjustNodeVoltages(dt);
                 if (score >= 0.0)
