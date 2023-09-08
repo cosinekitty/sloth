@@ -117,7 +117,7 @@ static int UnitTest_VoltageDivider()
     const double vpos = 3.0;
     const double res1 = 1000.0;
 
-    int np = circuit.createFixedVoltageNode(vpos);
+    int np = circuit.createForcedVoltageNode(vpos);
     int n1 = circuit.createNode();
     int n2 = circuit.createNode();
     int ng = circuit.createGroundNode();
@@ -173,7 +173,7 @@ static int UnitTest_ResistorCapacitorTimeConstant()
 
     Circuit circuit;
     circuit.scoreTolerance = 5.0e-11;
-    int n0 = circuit.createFixedVoltageNode(supplyVoltage);
+    int n0 = circuit.createForcedVoltageNode(supplyVoltage);
     int n1 = circuit.createNode();
     int n2 = circuit.createGroundNode();
     circuit.addResistor(resistance, n0, n1);

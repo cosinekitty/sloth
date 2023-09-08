@@ -391,7 +391,7 @@ namespace Analog
             node.forced = true;
         }
 
-        int createFixedVoltageNode(double voltage)
+        int createForcedVoltageNode(double voltage)
         {
             int nodeIndex = createNode();
             allocateForcedVoltageNode(nodeIndex);
@@ -403,7 +403,7 @@ namespace Analog
 
         int createGroundNode()
         {
-            return createFixedVoltageNode(0.0);
+            return createForcedVoltageNode(0.0);
         }
 
         int addResistor(double resistance, int aNodeIndex, int bNodeIndex)
