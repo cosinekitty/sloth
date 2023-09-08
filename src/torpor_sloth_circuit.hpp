@@ -38,7 +38,7 @@ namespace Analog
 
             addResistor(1.0e+6, n1, n7);    // R1
             addResistor(4.7e+6, n1, n8);    // R2
-            int variableResistorIndex = addResistor(100.0e+3, 1, 3);    // R3
+            int variableResistorIndex = addResistor(100.0e+3, n1, n3);    // R3
             addResistor(100.0e+3, n6, n7);  // R4
             addResistor(100.0e+3, n5, n6);  // R5
             addResistor(100.0e+3, n2, n3);  // R6
@@ -56,10 +56,6 @@ namespace Analog
             ledNodeVoltage = &nodeVoltage(n8);
             xNodeVoltage = &nodeVoltage(n2);
             yNodeVoltage = &nodeVoltage(n5);
-
-            // Tweak the solver parameters for this particular circuit
-            // so that the solver converges reliably and accurately.
-            scoreTolerance = 3.0e-6;    // max ampere discrepancy for node currents
         }
 
         void setKnobPosition(double fraction)
