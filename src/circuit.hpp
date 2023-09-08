@@ -106,6 +106,18 @@ namespace Analog
         {
             current = 0;
         }
+
+        std::string to_string() const
+        {
+            std::string text = "OpAmp[POS=";
+            text += std::to_string(posNodeIndex);
+            text += ", NEG=";
+            text += std::to_string(negNodeIndex);
+            text += ", OUT=";
+            text += std::to_string(outNodeIndex);
+            text += "]";
+            return text;
+        }
     };
 
 
@@ -338,7 +350,7 @@ namespace Analog
             // We should never lose ground. Otherwise we risk not converging.
             if (score3 >= score1)
             {
-                printf("score change = %lg\n", score3 - score1);
+                if (debug) printf("score change = %lg\n", score3 - score1);
                 throw std::logic_error("Solver is losing ground.");
             }
 
@@ -463,8 +475,31 @@ namespace Analog
             confirmUnlocked();
             v(posNodeIndex);
             v(negNodeIndex);
+
+            OpAmp newOpAmp(posNodeIndex, negNodeIndex, outNodeIndex);
+
+            // We always calculate op-amp output voltages in the order
+            // the op-amps were added to the circuit. Prevent incorrect
+            // calculation order by preventing an op-amp from being added
+            // to the circuit if its output feeds into either of an existing
+            // op-amp's inputs.
+            const int n = opAmpList.size();
+            for (int i = 0; i < n; ++i)
+            {
+                const OpAmp& o = opAmpList[i];
+                if (o.negNodeIndex == outNodeIndex || o.posNodeIndex == outNodeIndex)
+                {
+                    using namespace std;
+                    string message = newOpAmp.to_string();
+                    message += " would calculate after op-amp ";
+                    message += o.to_string();
+                    message += ", causing incorrect voltage to be received by the second op-amp.";
+                    throw std::logic_error(message);
+                }
+            }
+
             allocateForcedVoltageNode(outNodeIndex);
-            opAmpList.push_back(OpAmp(posNodeIndex, negNodeIndex, outNodeIndex));
+            opAmpList.push_back(newOpAmp);
             return opAmpList.size() - 1;
         }
 
