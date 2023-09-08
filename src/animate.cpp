@@ -257,10 +257,36 @@ static int UnitTest_Torpor()
 
     TorporSlothCircuit circuit;
 
-    if (circuit.getResistorCount() != 7)
+    circuit.setControlVoltage(-1.3);
+    circuit.setKnobPosition(0.25);
+
+    for (int sample = 0; sample < 10; ++sample)
     {
-        printf("Torpor: Expected 7 resistors but found %d.\n", circuit.getResistorCount());
-        return 1;
+        SolutionResult result = circuit.update(SAMPLE_RATE);
+        double led = circuit.ledVoltage();
+        double vx = circuit.xVoltage();
+        double vy = circuit.yVoltage();
+        printf("Torpor: sample=%d, iterations=%d, score=%lg, led=%0.6lf, x=%0.6lf, y=%0.6lf\n",
+            sample, result.iterations, result.score,
+            led, vx, vy);
+
+        if (led < circuit.VNEG || led > circuit.VPOS)
+        {
+            printf("Torpor: LED voltage is out of bounds!\n");
+            return 1;
+        }
+
+        if (vx < circuit.VNEG || vx > circuit.VPOS)
+        {
+            printf("Torpor: output voltage X is out of bounds!\n");
+            return 1;
+        }
+
+        if (vy < circuit.VNEG || vy > circuit.VPOS)
+        {
+            printf("Torpor: output voltage Y is out of bounds!\n");
+            return 1;
+        }
     }
 
     printf("Torpor: PASS\n");
