@@ -169,6 +169,7 @@ static int UnitTest_ResistorCapacitorTimeConstant()
     const double supplyVoltage = 1.0;
 
     Circuit circuit;
+    circuit.scoreTolerance = 5.0e-11;
     int n0 = circuit.createFixedVoltageNode(supplyVoltage);
     int n1 = circuit.createNode();
     int n2 = circuit.createGroundNode();

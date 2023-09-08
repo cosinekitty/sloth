@@ -219,14 +219,11 @@ namespace Analog
 
         double adjustNodeVoltages(double dt)
         {
-            const double SCORE_TOLERANCE = 1.0e-16;     // amps^2
-            const double DELTA_VOLTAGE = 1.0e-9;        // step size = 1 nanovolt
-
             // Measure the simulation error before changing any unforced node voltages.
             double score1 = updateCurrents(dt);
 
             // If the score is good enough, consider the update successful.
-            if (score1 < SCORE_TOLERANCE)
+            if (score1 < scoreTolerance*scoreTolerance)
             {
                 // Indicate success and report the score.
                 // Take the square root of the sum-of-squares to report
@@ -249,7 +246,7 @@ namespace Analog
                     // "linear amplifier mode" and "comparator mode".
                     // I might have to try increasing and decreasing the voltage,
                     // pick whichever one reduces the overall simulation error.
-                    n.voltage[0] += DELTA_VOLTAGE;
+                    n.voltage[0] += deltaVoltage;
 
                     // See how much change it makes to the solution score.
                     // We are looking for dE/dV, where E = error and V = voltage.
@@ -268,7 +265,7 @@ namespace Analog
             // Calculate the derivative of changing the entire system state in
             // the direction indicated by the hypervector that points downhill
             // toward the steepest direction of decreased system error.
-            // Normalize the vector such that its magnitude is still DELTA_VOLTAGE.
+            // Normalize the vector such that its magnitude is still deltaVoltage.
             double magnitude = 0;
             for (const Node& n : nodeList)
                 if (!n.forced)
@@ -280,7 +277,7 @@ namespace Analog
                 if (!n.forced)
                 {
                     n.savedVoltage = n.voltage[0];
-                    n.slope *= -DELTA_VOLTAGE / magnitude;  // negative to go "downhill"
+                    n.slope *= -deltaVoltage / magnitude;  // negative to go "downhill"
                     n.voltage[0] += n.slope;
                 }
             }
@@ -299,7 +296,7 @@ namespace Analog
             // In reality we have to be more cautious, hence the ALPHA factor.
             // We want to approach the solution quickly, but without oscillating around it
             // or worse, becoming unstable and diverging.
-            // We have just stepped DELTA_VOLTAGE along the hypervector.
+            // We have just stepped deltaVoltage along the hypervector.
             // What multiple of that distance would naively bring the error to zero?
             const double ALPHA = 0.6;   // fraction of the way to "jump" toward the naive ideal value
 
@@ -324,6 +321,8 @@ namespace Analog
         }
 
     public:
+        double scoreTolerance = 1.0e-8;     // amps : adjust as necessary for a given circuit, to balance accuracy with convergence
+        double deltaVoltage = 1.0e-9;       // step size to try each axis (node) in the search space
         const double OPAMP_GAIN = 1.0e+6;
         const double VPOS = +12;       // positive supply voltage fed to all op-amps
         const double VNEG = -12;       // negative supply voltage fed to all op-amps
