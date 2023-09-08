@@ -120,6 +120,20 @@ namespace Analog
     };
 
 
+    struct PerformanceStats
+    {
+        long totalIterations;
+        long totalSamples;
+        double simulationTimeInSeconds;
+
+        PerformanceStats(long iterations, long samples, double simTime)
+            : totalIterations(iterations)
+            , totalSamples(samples)
+            , simulationTimeInSeconds(simTime)
+            {}
+    };
+
+
     class Circuit
     {
     private:
@@ -128,6 +142,9 @@ namespace Analog
         std::vector<Resistor> resistorList;
         std::vector<Capacitor> capacitorList;
         std::vector<OpAmp> opAmpList;
+        long totalIterations = 0;
+        long totalSamples = 0;
+        double simulationTime = 0.0;
 
         int v(int nodeIndex) const
         {
@@ -340,6 +357,10 @@ namespace Analog
 
         void initialize()
         {
+            totalIterations = 0;
+            totalSamples = 0;
+            simulationTime = 0.0;
+
             for (Resistor& r : resistorList)
                 r.initialize();
 
@@ -466,10 +487,20 @@ namespace Analog
             {
                 double score = adjustNodeVoltages(dt);
                 if (score >= 0.0)
+                {
+                    totalIterations += count;
+                    ++totalSamples;
+                    simulationTime += dt;
                     return SolutionResult(count, score);
+                }
             }
 
             throw std::logic_error("Circuit solver failed to converge on a solution.");
+        }
+
+        PerformanceStats getPerformanceStats() const
+        {
+            return PerformanceStats(totalIterations, totalSamples, simulationTime);
         }
     };
 }

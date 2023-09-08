@@ -223,6 +223,19 @@ static int UnitTest_ResistorCapacitorTimeConstant()
 
     fclose(outfile);
 
+    PerformanceStats stats = circuit.getPerformanceStats();
+    if (stats.totalSamples != nsamples)
+    {
+        printf("ResistorCapacitorTimeConstant: stats.totalSamples=%ld, but nsamples=%d\n", stats.totalSamples, nsamples);
+        return 1;
+    }
+
+    if (stats.totalIterations != totalIterations)
+    {
+        printf("ResistorCapacitorTimeConstant: stats.totalIterations=%ld, but totalIterations=%d\n", stats.totalIterations, totalIterations);
+        return 1;
+    }
+
     if (maxdiff > 3.31e-5)
     {
         printf("ResistorCapacitorTimeConstant: FAIL - excessive capacitor voltage error = %0.6lg\n", maxdiff);
