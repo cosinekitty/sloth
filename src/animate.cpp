@@ -223,9 +223,9 @@ static int UnitTest_ResistorCapacitorTimeConstant()
 
     fclose(outfile);
 
-    if (maxdiff > 0.0081)
+    if (maxdiff > 3.31e-5)
     {
-        printf("ResistorCapacitorTimeConstant: FAIL - excessive capacitor voltage error = %0.6lf\n", maxdiff);
+        printf("ResistorCapacitorTimeConstant: FAIL - excessive capacitor voltage error = %0.6lg\n", maxdiff);
         return 1;
     }
 
