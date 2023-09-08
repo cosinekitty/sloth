@@ -260,15 +260,21 @@ static int UnitTest_Torpor()
     circuit.setControlVoltage(-1.3);
     circuit.setKnobPosition(0.25);
 
-    for (int sample = 0; sample < 10; ++sample)
+    const int nseconds = 10;
+    const int nsamples = nseconds * SAMPLE_RATE;
+    for (int sample = 0; sample < nsamples; ++sample)
     {
         SolutionResult result = circuit.update(SAMPLE_RATE);
         double led = circuit.ledVoltage();
         double vx = circuit.xVoltage();
         double vy = circuit.yVoltage();
-        printf("Torpor: sample=%d, iterations=%d, score=%lg, led=%0.6lf, x=%0.6lf, y=%0.6lf\n",
-            sample, result.iterations, result.score,
-            led, vx, vy);
+
+        if (sample % SAMPLE_RATE == 0)
+        {
+            printf("Torpor: sample=%d, iterations=%d, score=%lg, led=%0.6lf, x=%0.6lf, y=%0.6lf\n",
+                sample, result.iterations, result.score,
+                led, vx, vy);
+        }
 
         if (led < circuit.VNEG || led > circuit.VPOS)
         {
@@ -289,7 +295,9 @@ static int UnitTest_Torpor()
         }
     }
 
-    printf("Torpor: PASS\n");
+    PerformanceStats stats = circuit.getPerformanceStats();
+
+    printf("Torpor: PASS -- mean_iter=%lg\n", stats.meanIterationsPerSample());
     return 0;
 }
 

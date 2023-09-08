@@ -132,6 +132,11 @@ namespace Analog
             , totalSamples(samples)
             , simulationTimeInSeconds(simTime)
             {}
+
+        double meanIterationsPerSample() const
+        {
+            return (totalSamples == 0) ? 0.0 : (static_cast<double>(totalIterations) / totalSamples);
+        }
     };
 
 

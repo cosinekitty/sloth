@@ -56,6 +56,10 @@ namespace Analog
             ledNodeVoltage = &nodeVoltage(n8);
             xNodeVoltage = &nodeVoltage(n2);
             yNodeVoltage = &nodeVoltage(n5);
+
+            // Tweak the solver parameters for this particular circuit
+            // so that the solver converges reliably and accurately.
+            scoreTolerance = 3.0e-6;    // max ampere discrepancy for node currents
         }
 
         void setKnobPosition(double fraction)
