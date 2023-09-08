@@ -176,6 +176,7 @@ namespace Analog
         double updateCurrents(double dt)     // returns sum-of-squares of node current discrepancies
         {
             // Based on the voltage at each op-amp's input, calculate its output voltage.
+            if (debug) printf("\n");
             for (OpAmp& o : opAmpList)
             {
                 const Node& posNode = nodeList.at(o.posNodeIndex);
@@ -187,6 +188,15 @@ namespace Analog
                     outNode.voltage[0] = VNEG;
                 else if (outNode.voltage[0] > VPOS)
                     outNode.voltage[0] = VPOS;
+
+                if (debug)
+                {
+                    printf("   opamp: POS[%d] = %lg V, NEG[%d] = %lg V, OUT[%d] = %lg V\n",
+                        o.posNodeIndex, posNode.voltage[0],
+                        o.negNodeIndex, negNode.voltage[0],
+                        o.outNodeIndex, outNode.voltage[0]
+                    );
+                }
             }
 
             // Add up currents flowing into each node.
@@ -228,6 +238,24 @@ namespace Analog
                 const Node &n = nodeList.at(o.outNodeIndex);
                 o.current = -n.current;
                 // Node current will be zeroed out below. No need to do it here also.
+            }
+
+            if (debug)
+            {
+                printf("\n");
+                int nn = nodeList.size();
+                for (int i = 0; i < nn; ++i)
+                {
+                    const Node& n = nodeList[i];
+                    if (!n.forced)
+                        printf("   node[%d] voltage=%lg, current=%lg\n", i, n.voltage[0], n.current);
+                }
+                for (int i = 0; i < nn; ++i)
+                {
+                    const Node& n = nodeList[i];
+                    if (n.forced)
+                        printf("F  node[%d] voltage=%lg, current=%lg\n", i, n.voltage[0], n.current);
+                }
             }
 
             double score = 0;
@@ -344,6 +372,7 @@ namespace Analog
         }
 
     public:
+        bool debug = false;
         double scoreTolerance = 1.0e-8;     // amps : adjust as necessary for a given circuit, to balance accuracy with convergence
         double deltaVoltage = 1.0e-9;       // step size to try each axis (node) in the search space
         const double OPAMP_GAIN = 1.0e+6;
@@ -506,6 +535,7 @@ namespace Analog
             const int RETRY_LIMIT = 100;
             for (int count = 1; count <= RETRY_LIMIT; ++count)
             {
+                if (debug) printf("update: count = %d\n", count);
                 double score = adjustNodeVoltages(dt);
                 if (score >= 0.0)
                 {
