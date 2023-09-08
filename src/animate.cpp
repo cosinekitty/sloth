@@ -3,6 +3,7 @@
 #include <cmath>
 #include <stdexcept>
 #include "circuit.hpp"
+#include "torpor_sloth_circuit.hpp"
 
 const int SAMPLE_RATE = 44100;
 
@@ -28,12 +29,14 @@ static int Animate();
 static int UnitTest_ResistorFeedback();
 static int UnitTest_VoltageDivider();
 static int UnitTest_ResistorCapacitorTimeConstant();
+static int UnitTest_Torpor();
 
 int main(int argc, const char *argv[])
 {
     if (UnitTest_ResistorCapacitorTimeConstant()) return 1;
     if (UnitTest_ResistorFeedback()) return 1;
     if (UnitTest_VoltageDivider()) return 1;
+    if (UnitTest_Torpor()) return 1;
 
     if (argc == 2 && !strcmp(argv[1], "test"))
         return 0;   // stop after unit tests
@@ -244,6 +247,23 @@ static int UnitTest_ResistorCapacitorTimeConstant()
 
     double meanIterations = static_cast<double>(totalIterations) / nsamples;
     printf("ResistorCapacitorTimeConstant: PASS (mean iterations = %0.3lf, max = %d, capacitor voltage error = %lg)\n", meanIterations, maxIterations, maxdiff);
+    return 0;
+}
+
+
+static int UnitTest_Torpor()
+{
+    using namespace Analog;
+
+    TorporSlothCircuit circuit;
+
+    if (circuit.getResistorCount() != 7)
+    {
+        printf("Torpor: Expected 7 resistors but found %d.\n", circuit.getResistorCount());
+        return 1;
+    }
+
+    printf("Torpor: PASS\n");
     return 0;
 }
 

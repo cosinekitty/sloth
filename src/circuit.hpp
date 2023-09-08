@@ -14,11 +14,11 @@
 
 namespace Analog
 {
-    const int VOLTAGE_HISTORY = 3;
+    const int VOLTAGE_HISTORY = 3;   // the total number of consecutive samples for which each node holds a voltage
 
     struct Node
     {
-        double voltage[VOLTAGE_HISTORY]{};    // voltage[0] = current, voltage[1] = previous, ... [volts]
+        double voltage[VOLTAGE_HISTORY]{};    // voltage[0] = this sample, voltage[1] = previous sample, ... [volts]
         double savedVoltage{};  // temporary scratch-pad for holding pre-mutated voltage [volts]
         double current{};       // net current flowing into the node. must be zero to achieve a solution. [amps]
         double slope{};         // delta E, where E = sum(current^2); gradient steepness from changing this node's voltage
@@ -449,16 +449,31 @@ namespace Analog
             return nodeList.at(nodeIndex).voltage[0];
         }
 
+        int getResistorCount() const
+        {
+            return resistorList.size();
+        }
+
         Resistor& resistor(int index)
         {
             confirmLocked();
             return resistorList.at(index);
         }
 
+        int getCapacitorCount() const
+        {
+            return capacitorList.size();
+        }
+
         Capacitor& capacitor(int index)
         {
             confirmLocked();
             return capacitorList.at(index);
+        }
+
+        int getOpAmpCount() const
+        {
+            return opAmpList.size();
         }
 
         OpAmp& opAmp(int index)
