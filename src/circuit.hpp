@@ -92,7 +92,8 @@ namespace Analog
         int outNodeIndex;
 
         // Dynamic state
-        double current;    // current leaving the output terminal [amps]
+        double current;     // current leaving the output terminal [amps]
+        double voltage[2];  // low-pass filtered output voltage [0]=this, [1]=prev
 
         OpAmp(int _posNodeIndex, int _negNodeIndex, int _outNodeIndex)
             : posNodeIndex(_posNodeIndex)
@@ -105,6 +106,7 @@ namespace Analog
         void initialize()
         {
             current = 0;
+            voltage[0] = voltage[1] = 0;
         }
 
         std::string to_string() const
@@ -155,8 +157,6 @@ namespace Analog
     class Circuit
     {
     private:
-        const double OPAMP_GAIN = 1.0e+6;
-
         bool isLocked = false;          // must lock the circuit before accessing its components
         std::vector<Node> nodeList;
         std::vector<Resistor> resistorList;
@@ -165,6 +165,7 @@ namespace Analog
         long totalIterations = 0;
         long totalSamples = 0;
         double simulationTime = 0.0;
+        double opAmpFilterCoeff = 0.0;
 
         int v(int nodeIndex) const
         {
@@ -172,7 +173,7 @@ namespace Analog
             return nodeIndex;
         }
 
-        void extrapolateNodeVoltages()
+        void extrapolateUnforcedNodeVoltages()
         {
             // Try to give the solver an initial boost by extrapolating the recent
             // trend in voltages to the next sample.
@@ -190,6 +191,8 @@ namespace Analog
         double updateCurrents(double dt)     // returns sum-of-squares of node current discrepancies
         {
             // Based on the voltage at each op-amp's input, calculate its output voltage.
+            // Apply low-pass filtering to simulate a finite slew rate.
+            // This is necessary to achieve convergence to a solution.
             if (debug) printf("\n");
             for (OpAmp& o : opAmpList)
             {
@@ -197,11 +200,20 @@ namespace Analog
                 const Node& negNode = nodeList.at(o.negNodeIndex);
                 Node& outNode = nodeList.at(o.outNodeIndex);
 
-                outNode.voltage[0] = OPAMP_GAIN * (posNode.voltage[0] - negNode.voltage[0]);
-                if (outNode.voltage[0] < VNEG)
-                    outNode.voltage[0] = VNEG;
-                else if (outNode.voltage[0] > VPOS)
-                    outNode.voltage[0] = VPOS;
+                // Calculate the instantaneous output voltage.
+                // That is, the voltage the op-amp *would* present if its
+                // slew rate were infinite.
+                double vfast = opAmpOpenLoopGain * (posNode.voltage[0] - negNode.voltage[0]);
+                if (vfast < VNEG)
+                    vfast = VNEG;
+                else if (vfast > VPOS)
+                    vfast = VPOS;
+
+                // Feed the rapid changes of output voltage through a low-pass slew filter.
+                o.voltage[0] = (opAmpFilterCoeff * o.voltage[1]) + ((1-opAmpFilterCoeff) * vfast);
+
+                // Copy the filtered voltage into the forced-voltage output node.
+                outNode.voltage[0] = o.voltage[0];
 
                 if (debug)
                 {
@@ -401,18 +413,20 @@ namespace Analog
                 for (int i = VOLTAGE_HISTORY-1; i > 0; --i)
                     node.voltage[i] = node.voltage[i-1];
 
-            extrapolateNodeVoltages();
+            // Update output voltages on the op-amps to reflect their new low-pass filtered state.
+            for (OpAmp& o : opAmpList)
+                o.voltage[1] = o.voltage[0];
+
+            extrapolateUnforcedNodeVoltages();
 
             const int RETRY_LIMIT = 100;
             for (int count = 1; count <= RETRY_LIMIT; ++count)
             {
-                if (debug) printf("update: count = %d\n", count);
+                if (debug) printf("simulationStep: count = %d\n", count);
                 double score = adjustNodeVoltages(dt);
                 if (score >= 0.0)
                 {
                     totalIterations += count;
-                    ++totalSamples;
-                    simulationTime += dt;
                     return SolutionResult(count, score);
                 }
             }
@@ -428,7 +442,8 @@ namespace Analog
         double scoreTolerance = 1.0e-8;     // amps : adjust as necessary for a given circuit, to balance accuracy with convergence
         double deltaVoltage = 1.0e-9;       // step size to try each axis (node) in the search space
         int minInternalSamplingRate = 40000;            // we oversample as needed to reach this minimum sampling rate for the circuit solver
-        double opAmpSlewRateHalfLifeSeconds = 0.1;      // we low-pass filter op-amp outputs to make the solver converge easily
+        double opAmpSlewRateHalfLifeSeconds = 0.0;      // we low-pass filter op-amp outputs to make the solver converge easily
+        double opAmpOpenLoopGain = 1.0e+6;
 
         void lock()
         {
@@ -604,13 +619,30 @@ namespace Analog
             // Make absolutely sure the factor is a postive integer.
             const int factor = std::max(1, static_cast<int>(std::ceil(realFactor)));
             const double simSamplingRateHz = factor * audioSampleRateHz;
+
+            if (!opAmpList.empty() && (opAmpSlewRateHalfLifeSeconds > 0.0))
+            {
+                // Calculate the lowpass filter coefficient necessary to achieve
+                // the desired half-life slew response from op-amps.
+                opAmpFilterCoeff = std::pow(0.5, 1.0 / (simSamplingRateHz * opAmpSlewRateHalfLifeSeconds));
+            }
+            else
+            {
+                // There are no op-amps, or we want to completely disable low-pass filtering.
+                opAmpFilterCoeff = 0.0;
+            }
+
             SolutionResult result(0, -1.0);
             for (int step = 0; step < factor; ++step)
             {
+                if (debug) printf("\nupdate: audio sample %ld, step %d\n", totalSamples, step);
                 SolutionResult stepResult = simulationStep(simSamplingRateHz);
                 result.iterations += stepResult.iterations;
                 result.score = stepResult.score;
             }
+
+            ++totalSamples;
+            simulationTime += (1 / audioSampleRateHz);
             return result;
         }
 

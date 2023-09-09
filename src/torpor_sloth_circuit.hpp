@@ -56,6 +56,14 @@ namespace Analog
             ledNodeVoltage = &nodeVoltage(n8);
             xNodeVoltage = &nodeVoltage(n2);
             yNodeVoltage = &nodeVoltage(n5);
+
+            // Enable low-pass filtering on the op-amps, for a gradual slew rate.
+            // This is necessary for the solver's numerical convergence,
+            // due to chaining of op-amps that results in very high open-loop gains.
+            opAmpSlewRateHalfLifeSeconds = 1.0;
+
+            // Reduce the open-loop gain on the op-amps, to make them easier to model.
+            opAmpOpenLoopGain = 1.0e+5;
         }
 
         void setKnobPosition(double fraction)
