@@ -188,12 +188,12 @@ namespace Analog
             }
         }
 
-        double updateCurrents(double dt)     // returns sum-of-squares of node current discrepancies
+        double updateCurrents(double dt, const char *comment)     // returns sum-of-squares of node current discrepancies
         {
             // Based on the voltage at each op-amp's input, calculate its output voltage.
             // Apply low-pass filtering to simulate a finite slew rate.
             // This is necessary to achieve convergence to a solution.
-            if (debug) printf("\n");
+            if (debug) printf("\nupdateCurrents(%s)\n", comment);
             for (OpAmp& o : opAmpList)
             {
                 const Node& posNode = nodeList.at(o.posNodeIndex);
@@ -297,7 +297,7 @@ namespace Analog
         double adjustNodeVoltages(double dt)
         {
             // Measure the simulation error before changing any unforced node voltages.
-            double score1 = updateCurrents(dt);
+            double score1 = updateCurrents(dt, "before voltage adjust");
             if (debug) printf("\nadjustNodeVoltages: sqrt(score1) = %lg\n", std::sqrt(score1));
 
             // If the score is good enough, consider the update successful.
@@ -312,6 +312,7 @@ namespace Analog
 
             // Calculate partial derivatives of how much each node's voltage
             // affects the simulation error.
+            double magnitude = 0.0;
             for (Node &n : nodeList)
             {
                 if (!n.forced)
@@ -324,15 +325,18 @@ namespace Analog
                     // of increasing and decreasing the voltage, evaluating the currents
                     // at both, and drawing a secant line that approximates the tangent line.
                     n.voltage[0] += deltaVoltage;
-                    double score2p = updateCurrents(dt);
+                    double score2p = updateCurrents(dt, "partial derivative +");
 
                     n.voltage[0] = n.savedVoltage - deltaVoltage;
-                    double score2n = updateCurrents(dt);
+                    double score2n = updateCurrents(dt, "partial derivative -");
 
                     // Store this slope in each unforced node.
                     // We will use them later to update all node voltages to get
                     // closer to the desired solution.
                     n.slope = score2p - score2n;
+
+                    // Accumulate the magnitude of the gradient vector so we can normalize it later.
+                    magnitude += n.slope * n.slope;
 
                     // Restore the original voltage.
                     n.voltage[0] = n.savedVoltage;
@@ -341,27 +345,27 @@ namespace Analog
                 }
             }
 
+            if (magnitude == 0.0)
+                throw std::logic_error("Solver cannot make progress because gradient vector is zero.");
+
             // Calculate the derivative of changing the entire system state in
             // the direction indicated by the hypervector that points downhill
             // toward the steepest direction of decreased system error.
             // Normalize the vector such that its magnitude is still deltaVoltage.
-            double magnitude = 0;
-            for (const Node& n : nodeList)
-                if (!n.forced)
-                    magnitude += n.slope * n.slope;
             magnitude = std::sqrt(magnitude);
+            if (debug) printf("magnitude = %lg\n", magnitude);
 
             for (Node& n : nodeList)
             {
                 if (!n.forced)
                 {
                     n.savedVoltage = n.voltage[0];
-                    n.slope *= -deltaVoltage / magnitude;  // negative to go "downhill"
+                    n.slope *= -deltaVoltage / magnitude;  // negative to go "downhill" : gradient descent
                     n.voltage[0] += n.slope;
                 }
             }
 
-            double score3 = updateCurrents(dt);
+            double score3 = updateCurrents(dt, "after voltage micro-adjustment");
             if (debug) printf("\nadjustNodeVoltages: sqrt(score3) = %lg\n", std::sqrt(score3));
 
             // We should never lose ground. Otherwise we risk not converging.
@@ -378,9 +382,7 @@ namespace Analog
             // or worse, becoming unstable and diverging.
             // We have just stepped deltaVoltage along the hypervector.
             // What multiple of that distance would naively bring the error to zero?
-            const double ALPHA = 0.6;   // fraction of the way to "jump" toward the naive ideal value
-
-            double step = ALPHA * (score1 / (score1 - score3));
+            double step = alpha * (score1 / (score1 - score3));
             for (Node& n : nodeList)
                 if (!n.forced)
                     n.voltage[0] = n.savedVoltage + (step * n.slope);
@@ -431,7 +433,7 @@ namespace Analog
                 }
             }
 
-            throw std::logic_error("Circuit solver failed to converge on a solution.");
+            throw std::logic_error(std::string("Circuit solver failed to converge at sample " + std::to_string(totalSamples)));
         }
 
     public:
@@ -444,6 +446,7 @@ namespace Analog
         int minInternalSamplingRate = 40000;            // we oversample as needed to reach this minimum sampling rate for the circuit solver
         double opAmpSlewRateHalfLifeSeconds = 0.0;      // we low-pass filter op-amp outputs to make the solver converge easily
         double opAmpOpenLoopGain = 1.0e+6;
+        double alpha = 0.6;   // fraction of the way to "jump" toward the naive ideal value
 
         void lock()
         {
@@ -622,9 +625,14 @@ namespace Analog
 
             if (!opAmpList.empty() && (opAmpSlewRateHalfLifeSeconds > 0.0))
             {
+                double prev = opAmpFilterCoeff;
+
                 // Calculate the lowpass filter coefficient necessary to achieve
                 // the desired half-life slew response from op-amps.
                 opAmpFilterCoeff = std::pow(0.5, 1.0 / (simSamplingRateHz * opAmpSlewRateHalfLifeSeconds));
+
+                if (debug && (prev != opAmpFilterCoeff))
+                    printf("\nupdate: opAmpFilterCoeff = %0.16lf\n", opAmpFilterCoeff);
             }
             else
             {

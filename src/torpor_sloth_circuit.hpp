@@ -63,7 +63,9 @@ namespace Analog
             opAmpSlewRateHalfLifeSeconds = 1.0;
 
             // Reduce the open-loop gain on the op-amps, to make them easier to model.
-            opAmpOpenLoopGain = 1.0e+5;
+            opAmpOpenLoopGain = 1.0;
+
+            alpha = 0.3;
         }
 
         void setKnobPosition(double fraction)
