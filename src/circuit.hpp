@@ -284,6 +284,7 @@ namespace Analog
         {
             // Measure the simulation error before changing any unforced node voltages.
             double score1 = updateCurrents(dt);
+            if (debug) printf("\nadjustNodeVoltages: sqrt(score1) = %lg\n", std::sqrt(score1));
 
             // If the score is good enough, consider the update successful.
             if (score1 < scoreTolerance*scoreTolerance)
@@ -314,6 +315,7 @@ namespace Analog
                     // See how much change it makes to the solution score.
                     // We are looking for dE/dV, where E = error and V = voltage.
                     double score2 = updateCurrents(dt);
+                    if (debug) printf("\nadjustNodeVoltages: sqrt(score2) = %lg\n", std::sqrt(score2));
 
                     // Store this slope in each unforced node.
                     // We will use them later to update all node voltages to get
@@ -346,6 +348,7 @@ namespace Analog
             }
 
             double score3 = updateCurrents(dt);
+            if (debug) printf("\nadjustNodeVoltages: sqrt(score3) = %lg\n", std::sqrt(score3));
 
             // We should never lose ground. Otherwise we risk not converging.
             if (score3 >= score1)

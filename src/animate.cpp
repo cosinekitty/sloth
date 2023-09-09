@@ -257,6 +257,7 @@ static int UnitTest_Torpor()
 
     TorporSlothCircuit circuit;
 
+    circuit.debug = true;
     circuit.setControlVoltage(-1.3);
     circuit.setKnobPosition(0.25);
 
