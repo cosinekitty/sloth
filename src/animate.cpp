@@ -33,15 +33,23 @@ static int UnitTest_Torpor();
 
 int main(int argc, const char *argv[])
 {
-    if (UnitTest_ResistorCapacitorTimeConstant()) return 1;
-    if (UnitTest_ResistorFeedback()) return 1;
-    if (UnitTest_VoltageDivider()) return 1;
-    if (UnitTest_Torpor()) return 1;
+    try
+    {
+        if (UnitTest_ResistorCapacitorTimeConstant()) return 1;
+        if (UnitTest_ResistorFeedback()) return 1;
+        if (UnitTest_VoltageDivider()) return 1;
+        if (UnitTest_Torpor()) return 1;
 
-    if (argc == 2 && !strcmp(argv[1], "test"))
-        return 0;   // stop after unit tests
+        if (argc == 2 && !strcmp(argv[1], "test"))
+            return 0;   // stop after unit tests
 
-    return Animate();
+        return Animate();
+    }
+    catch (const std::exception& ex)
+    {
+        printf("animate.cpp : EXCEPTION: %s\n", ex.what());
+        return 9;
+    }
 }
 
 
