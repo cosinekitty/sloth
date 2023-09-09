@@ -304,26 +304,26 @@ namespace Analog
                 {
                     n.savedVoltage = n.voltage[0];
 
-                    // Tweak the voltage a tiny amount on this node.
-                    // FIXFIXFIX: because of op-amps, slopes may not converge
-                    // from both directions when we are near the boundary between
-                    // "linear amplifier mode" and "comparator mode".
-                    // I might have to try increasing and decreasing the voltage,
-                    // pick whichever one reduces the overall simulation error.
-                    n.voltage[0] += deltaVoltage;
-
-                    // See how much change it makes to the solution score.
                     // We are looking for dE/dV, where E = error and V = voltage.
-                    double score2 = updateCurrents(dt);
-                    if (debug) printf("\nadjustNodeVoltages: sqrt(score2) = %lg\n", std::sqrt(score2));
+                    // Tweak the voltage a tiny amount on this node.
+                    // To get better partial derivatives, we do the extra work
+                    // of increasing and decreasing the voltage, evaluating the currents
+                    // at both, and drawing a secant line that approximates the tangent line.
+                    n.voltage[0] += deltaVoltage;
+                    double score2p = updateCurrents(dt);
+
+                    n.voltage[0] = n.savedVoltage - deltaVoltage;
+                    double score2n = updateCurrents(dt);
 
                     // Store this slope in each unforced node.
                     // We will use them later to update all node voltages to get
                     // closer to the desired solution.
-                    n.slope = score2 - score1;
+                    n.slope = score2p - score2n;
 
                     // Restore the original voltage.
                     n.voltage[0] = n.savedVoltage;
+
+                    if (debug) printf("\nadjustNodeVoltages: sqrt(score2p) = %lg, sqrt(score2n) = %lg, slope = %lg\n", std::sqrt(score2p), std::sqrt(score2n), n.slope);
                 }
             }
 
