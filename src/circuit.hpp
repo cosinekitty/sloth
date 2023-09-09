@@ -375,19 +375,54 @@ namespace Analog
                 throw std::logic_error("Solver is losing ground.");
             }
 
-            // The naive idea would be to assume everything is linear and that we
-            // can extrapolate where we would hit zero error.
-            // In reality we have to be more cautious, hence the ALPHA factor.
-            // We want to approach the solution quickly, but without oscillating around it
-            // or worse, becoming unstable and diverging.
-            // We have just stepped deltaVoltage along the hypervector.
-            // What multiple of that distance would naively bring the error to zero?
-            double step = alpha * (score1 / (score1 - score3));
+            // We have just micro-stepped by `deltaVoltage` along the descending gradient.
+            // Perform a "line search" along that direction, to find a rough minimum along it:
+            // https://en.wikipedia.org/wiki/Line_search
+
+            double naiveStep = score1 / (score1 - score3);
+            double bestAlpha = 0.0;
+            double bestScore = -1.0;        // impossible score -- sentinel value
+            const double minAlpha = 0.1;
+            const double maxAlpha = 10.0;
+            const double factor = 1.2589254117941673;   // the tenth root of 10, so 10 iterations per decade
+
+            char comment[100];
+            comment[0] = '\0';      // in case debugging is disabled
+
+            for (double alpha = minAlpha; alpha < maxAlpha; alpha *= factor)
+            {
+                voltageStep(alpha * naiveStep);
+
+                if (debug) snprintf(comment, sizeof(comment), "line search, alpha = %lg, naive = %lg", alpha, naiveStep);
+                double lineScore = updateCurrents(dt, comment);
+                if (debug) printf("lineScore = %lg\n", lineScore);
+
+                if (bestScore < 0.0 || lineScore < bestScore)
+                {
+                    bestAlpha = alpha;
+                    bestScore = lineScore;
+                }
+            }
+
+            if (debug) printf("line search bestAlpha=%lg, bestScore=%lg, improvement=%lg\n", bestAlpha, bestScore, score1-bestScore);
+
+            if (bestScore < 0.0)
+                throw std::logic_error("Line search failed to find any scores!");   // should be impossible
+
+            if (bestScore >= score1)
+                throw std::logic_error("Line search could not improve the current score.");
+
+            // Step to the best distance we found.
+            voltageStep(bestAlpha * naiveStep);
+
+            return -1.0;    // indicate the search is incomplete: we made progress, but not good enough yet
+        }
+
+        void voltageStep(double step)
+        {
             for (Node& n : nodeList)
                 if (!n.forced)
                     n.voltage[0] = n.savedVoltage + (step * n.slope);
-
-            return -1.0;    // indicate failure: negative scores are not possible
         }
 
         void confirmLocked()
@@ -446,7 +481,6 @@ namespace Analog
         int minInternalSamplingRate = 40000;            // we oversample as needed to reach this minimum sampling rate for the circuit solver
         double opAmpSlewRateHalfLifeSeconds = 0.0;      // we low-pass filter op-amp outputs to make the solver converge easily
         double opAmpOpenLoopGain = 1.0e+6;
-        double alpha = 0.6;   // fraction of the way to "jump" toward the naive ideal value
 
         void lock()
         {

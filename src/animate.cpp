@@ -55,12 +55,17 @@ int main(int argc, const char *argv[])
 
 static int CheckSolution(
     Analog::Circuit& circuit,
+    int nsamples,
     const char *name,
     int outNodeIndex,
     double vOutExpected,
     double tolerance = 1.0e-4)
 {
-    Analog::SolutionResult result = circuit.update(SAMPLE_RATE);
+    Analog::SolutionResult result(0, 0.0);
+
+    for (int s = 0; s < nsamples; ++s)
+        result = circuit.update(SAMPLE_RATE);
+
     double vOut = V(circuit.getNodeVoltage(outNodeIndex));
     double diff = ABS(vOut - vOutExpected);
     printf("CheckSolution(%s): %d iterations, score = %lg amps, diff = %lg V on node %d\n",
@@ -80,6 +85,9 @@ static int UnitTest_ResistorFeedback()
     using namespace Analog;
 
     Circuit circuit;
+
+    circuit.debug = false;
+    circuit.opAmpSlewRateHalfLifeSeconds = 0.02;
 
     int n0 = circuit.createNode();
     int n1 = circuit.createNode();
@@ -101,13 +109,13 @@ static int UnitTest_ResistorFeedback()
     double& vIn = circuit.nodeVoltage(n0);
     vIn = 1.0;
     double vExact = -1.0e+7 / 1000011.0;    // manually derived exact solution
-    if (CheckSolution(circuit, "ResistorFeedback1", n2, vExact)) return 1;
+    if (CheckSolution(circuit, 2*SAMPLE_RATE, "ResistorFeedback1", n2, vExact)) return 1;
 
     vIn = 2.0;
-    if (CheckSolution(circuit, "ResistorFeedback2", n2, circuit.VNEG)) return 1;
+    if (CheckSolution(circuit, 2*SAMPLE_RATE, "ResistorFeedback2", n2, circuit.VNEG)) return 1;
 
     vIn = -2.0;
-    if (CheckSolution(circuit, "ResistorFeedback3", n2, circuit.VPOS)) return 1;
+    if (CheckSolution(circuit, 2*SAMPLE_RATE, "ResistorFeedback3", n2, circuit.VPOS)) return 1;
 
     printf("ResistorFeedback: PASS\n");
     return 0;
@@ -139,8 +147,8 @@ static int UnitTest_VoltageDivider()
     const Resistor& r0 = circuit.resistor(r0_index);
     const Resistor& r1 = circuit.resistor(r1_index);
 
-    if (CheckSolution(circuit, "VoltageDivider1", n1, 2.0)) return 1;
-    if (CheckSolution(circuit, "VoltageDivider2", n2, 1.0)) return 1;
+    if (CheckSolution(circuit, 1, "VoltageDivider1", n1, 2.0)) return 1;
+    if (CheckSolution(circuit, 1, "VoltageDivider2", n2, 1.0)) return 1;
 
     const double i0 = vpos / (3 * res1);
     double diff = ABS(r0.current - i0);
@@ -265,7 +273,7 @@ static int UnitTest_Torpor()
 
     TorporSlothCircuit circuit;
 
-    circuit.debug = true;
+    circuit.debug = false;
     circuit.setControlVoltage(-1.3);
     circuit.setKnobPosition(0.25);
 
