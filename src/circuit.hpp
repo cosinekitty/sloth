@@ -470,8 +470,7 @@ namespace Analog
 
             extrapolateUnforcedNodeVoltages();
 
-            const int RETRY_LIMIT = 100;
-            for (int count = 1; count <= RETRY_LIMIT; ++count)
+            for (int count = 1; count <= retryLimit; ++count)
             {
                 if (debug) printf("simulationStep: count = %d\n", count);
                 double score = adjustNodeVoltages(dt);
@@ -495,6 +494,7 @@ namespace Analog
         int minInternalSamplingRate = 40000;            // we oversample as needed to reach this minimum sampling rate for the circuit solver
         double opAmpSlewRateHalfLifeSeconds = 0.0;      // we low-pass filter op-amp outputs to make the solver converge easily
         double opAmpOpenLoopGain = 1.0e+6;
+        int retryLimit = 100;
 
         void lock()
         {
