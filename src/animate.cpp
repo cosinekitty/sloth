@@ -84,6 +84,8 @@ static int UnitTest_ResistorFeedback()
 {
     using namespace Analog;
 
+    printf("ResistorFeedback: starting.\n");
+
     Circuit circuit;
 
     circuit.debug = false;
@@ -127,6 +129,7 @@ static int UnitTest_VoltageDivider()
     using namespace Analog;
 
     // Exercise series and parallel resistors combined in a voltage divider pattern.
+    printf("VoltageDivider: starting.\n");
 
     Circuit circuit;
 
@@ -174,6 +177,8 @@ static int UnitTest_VoltageDivider()
 static int UnitTest_ResistorCapacitorTimeConstant()
 {
     using namespace Analog;
+
+    printf("ResistorCapacitorTimeConstant: starting.\n");
 
     // Define a circuit consisting of a resistor in series with a capacitor.
     // The top side of the resistor connects to +1V.
@@ -270,6 +275,8 @@ static int UnitTest_ResistorCapacitorTimeConstant()
 static int UnitTest_Torpor()
 {
     using namespace Analog;
+
+    printf("Torpor: starting\n");
 
     TorporSlothCircuit circuit;
 

@@ -375,45 +375,59 @@ namespace Analog
                 throw std::logic_error("Solver is losing ground.");
             }
 
-            // We have just micro-stepped by `deltaVoltage` along the descending gradient.
+            // We have just micro-stepped by `deltaVoltage` along the descending gradient,
+            // and `score3` is confirmed to be an improvement at that micro-step.
             // Perform a "line search" along that direction, to find a rough minimum along it:
             // https://en.wikipedia.org/wiki/Line_search
-
-            double naiveStep = score1 / (score1 - score3);
-            double bestAlpha = 0.0;
-            double bestScore = -1.0;        // impossible score -- sentinel value
-            const double minAlpha = 0.1;
-            const double maxAlpha = 10.0;
-            const double factor = 1.2589254117941673;   // the tenth root of 10, so 10 iterations per decade
+            // Look farther away than deltaVoltage and keep going until we find a score
+            // that is no longer better than score1.
+            // Then we have a bracket in which we can search for a score near the minimum.
 
             char comment[100];
             comment[0] = '\0';      // in case debugging is disabled
 
-            for (double alpha = minAlpha; alpha < maxAlpha; alpha *= factor)
+            const double dilation = 2.0;
+            double bestAlpha = 1.0;
+            double bestScore = score3;
+            double lineScore = -1.0;        // make sure we enter the `for` loop at least one time
+            for (double alpha = dilation; lineScore < score1; alpha *= dilation)
             {
-                voltageStep(alpha * naiveStep);
+                voltageStep(alpha);
 
-                if (debug) snprintf(comment, sizeof(comment), "line search, alpha = %lg, naive = %lg", alpha, naiveStep);
-                double lineScore = updateCurrents(dt, comment);
-                if (debug) printf("lineScore = %lg\n", lineScore);
-
-                if (bestScore < 0.0 || lineScore < bestScore)
+                if (debug) snprintf(comment, sizeof(comment), "upper bracket alpha = %lg", alpha);
+                lineScore = updateCurrents(dt, comment);
+                if (debug) printf("upper bracket score = %lg\n", lineScore);
+                if (lineScore < bestScore)
                 {
-                    bestAlpha = alpha;
                     bestScore = lineScore;
+                    bestAlpha = alpha;
+                }
+            }
+
+            // Perform an iterative search over the open range (bestAlpha/dilation, bestAlpha*dilation)
+            // for the best alpha and score we can find.
+
+            const int nsteps = 9;
+            double loAlpha = bestAlpha / dilation;
+            double hiAlpha = bestAlpha * dilation;
+            for (int step = 1; step < nsteps; ++step)   // iterate through interior points
+            {
+                double alpha = loAlpha + (step * (hiAlpha - loAlpha))/nsteps;
+                voltageStep(alpha);
+                if (debug) snprintf(comment, sizeof(comment), "linear step alpha = %lg", alpha);
+                lineScore = updateCurrents(dt, comment);
+                if (debug) printf("linear step score = %lg\n", lineScore);
+                if (lineScore < bestScore)
+                {
+                    bestScore = lineScore;
+                    bestAlpha = alpha;
                 }
             }
 
             if (debug) printf("line search bestAlpha=%lg, bestScore=%lg, improvement=%lg\n", bestAlpha, bestScore, score1-bestScore);
 
-            if (bestScore < 0.0)
-                throw std::logic_error("Line search failed to find any scores!");   // should be impossible
-
-            if (bestScore >= score1)
-                throw std::logic_error("Line search could not improve the current score.");
-
             // Step to the best distance we found.
-            voltageStep(bestAlpha * naiveStep);
+            voltageStep(bestAlpha);
 
             return -1.0;    // indicate the search is incomplete: we made progress, but not good enough yet
         }
