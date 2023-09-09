@@ -31,8 +31,8 @@ namespace Analog
             int n8 = createNode();
             int n9 = createForcedVoltageNode(0.0);   // CV input node
 
-            addOpAmp(ng, n7, n8);       // U1
             addOpAmp(ng, n6, n7);       // U2
+            addOpAmp(ng, n7, n8);       // U1
             addOpAmp(ng, n1, n2);       // U3
             addOpAmp(ng, n4, n5);       // U4
 
