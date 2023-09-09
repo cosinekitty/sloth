@@ -155,6 +155,8 @@ namespace Analog
     class Circuit
     {
     private:
+        const double OPAMP_GAIN = 1.0e+6;
+
         bool isLocked = false;          // must lock the circuit before accessing its components
         std::vector<Node> nodeList;
         std::vector<Resistor> resistorList;
@@ -386,13 +388,47 @@ namespace Analog
                 throw std::logic_error("Once the circuit is locked, you cannot add new nodes or components.");
         }
 
+        SolutionResult simulationStep(double simSampleRateHz)
+        {
+            const double dt = 1.0 / simSampleRateHz;
+
+            // Shift voltage history by one sample.
+            // This is needed to calculate capacitor currents, which are based on
+            // the rate of change of the voltage across each capacitor: i = C*(dV/dt).
+            // It is also used to extrapolate an initial guess for the next voltage
+            // on each sample.
+            for (Node& node : nodeList)
+                for (int i = VOLTAGE_HISTORY-1; i > 0; --i)
+                    node.voltage[i] = node.voltage[i-1];
+
+            extrapolateNodeVoltages();
+
+            const int RETRY_LIMIT = 100;
+            for (int count = 1; count <= RETRY_LIMIT; ++count)
+            {
+                if (debug) printf("update: count = %d\n", count);
+                double score = adjustNodeVoltages(dt);
+                if (score >= 0.0)
+                {
+                    totalIterations += count;
+                    ++totalSamples;
+                    simulationTime += dt;
+                    return SolutionResult(count, score);
+                }
+            }
+
+            throw std::logic_error("Circuit solver failed to converge on a solution.");
+        }
+
     public:
+        const double VPOS = +12;       // positive supply voltage fed to all op-amps
+        const double VNEG = -12;       // negative supply voltage fed to all op-amps
+
         bool debug = false;
         double scoreTolerance = 1.0e-8;     // amps : adjust as necessary for a given circuit, to balance accuracy with convergence
         double deltaVoltage = 1.0e-9;       // step size to try each axis (node) in the search space
-        const double OPAMP_GAIN = 1.0e+6;
-        const double VPOS = +12;       // positive supply voltage fed to all op-amps
-        const double VNEG = -12;       // negative supply voltage fed to all op-amps
+        int minInternalSamplingRate = 40000;            // we oversample as needed to reach this minimum sampling rate for the circuit solver
+        double opAmpSlewRateHalfLifeSeconds = 0.1;      // we low-pass filter op-amp outputs to make the solver converge easily
 
         void lock()
         {
@@ -555,36 +591,27 @@ namespace Analog
             return opAmpList.at(index);
         }
 
-        SolutionResult update(double sampleRateHz)
+        SolutionResult update(double audioSampleRateHz)
         {
-            const double dt = 1.0 / sampleRateHz;
+            if (audioSampleRateHz <= 0.0)
+                throw std::range_error("Audio sampling rate must be a positive number.");
 
-            // Shift voltage history by one sample.
-            // This is needed to calculate capacitor currents, which are based on
-            // the rate of change of the voltage across each capacitor: i = C*(dV/dt).
-            // It is also used to extrapolate an initial guess for the next voltage
-            // on each sample.
-            for (Node& node : nodeList)
-                for (int i = VOLTAGE_HISTORY-1; i > 0; --i)
-                    node.voltage[i] = node.voltage[i-1];
+            // Calculate the oversampling factor needed to achieve our internal
+            // minimum required simulation sampling rate.
+            const double realFactor = minInternalSamplingRate / audioSampleRateHz;
 
-            extrapolateNodeVoltages();
-
-            const int RETRY_LIMIT = 100;
-            for (int count = 1; count <= RETRY_LIMIT; ++count)
+            // Round up to the next higher integer.
+            // Make absolutely sure the factor is a postive integer.
+            const int factor = std::max(1, static_cast<int>(std::ceil(realFactor)));
+            const double simSamplingRateHz = factor * audioSampleRateHz;
+            SolutionResult result(0, -1.0);
+            for (int step = 0; step < factor; ++step)
             {
-                if (debug) printf("update: count = %d\n", count);
-                double score = adjustNodeVoltages(dt);
-                if (score >= 0.0)
-                {
-                    totalIterations += count;
-                    ++totalSamples;
-                    simulationTime += dt;
-                    return SolutionResult(count, score);
-                }
+                SolutionResult stepResult = simulationStep(simSamplingRateHz);
+                result.iterations += stepResult.iterations;
+                result.score = stepResult.score;
             }
-
-            throw std::logic_error("Circuit solver failed to converge on a solution.");
+            return result;
         }
 
         PerformanceStats getPerformanceStats() const
