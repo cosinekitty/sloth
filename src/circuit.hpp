@@ -310,8 +310,14 @@ namespace Analog
                 return std::sqrt(score1);
             }
 
+            Node *fallbackNode = nullptr;
+            double fallbackScore = score1;
+            double fallbackAdjust = 0.0;
+
             // Calculate partial derivatives of how much each node's voltage
             // affects the simulation error.
+            // At the same time, look for a fallback gradient along a single axis,
+            // in case the all-axis gradient fails.
             double magnitude = 0.0;
             for (Node &n : nodeList)
             {
@@ -327,8 +333,22 @@ namespace Analog
                     n.voltage[0] += deltaVoltage;
                     double score2p = updateCurrents(dt, "partial derivative +");
 
+                    if (score2p < fallbackScore)
+                    {
+                        fallbackNode = &n;
+                        fallbackScore = score2p;
+                        fallbackAdjust = +deltaVoltage;
+                    }
+
                     n.voltage[0] = n.savedVoltage - deltaVoltage;
                     double score2n = updateCurrents(dt, "partial derivative -");
+
+                    if (score2n < fallbackScore)
+                    {
+                        fallbackNode = &n;
+                        fallbackScore = score2n;
+                        fallbackAdjust = -deltaVoltage;
+                    }
 
                     // Store this slope in each unforced node.
                     // We will use them later to update all node voltages to get
@@ -371,8 +391,30 @@ namespace Analog
             // We should never lose ground. Otherwise we risk not converging.
             if (score3 >= score1)
             {
-                if (debug) printf("score change = %lg\n", score3 - score1);
-                throw std::logic_error("Solver is losing ground.");
+                // See if we can fall back to a single-axis change that improves the score.
+                if (fallbackNode != nullptr)
+                {
+                    if (debug) printf("using fallback\n");
+
+                    // Reset all node voltages.
+                    for (Node& n : nodeList)
+                    {
+                        if (!n.forced)
+                        {
+                            n.voltage[0] = n.savedVoltage;
+                            n.slope = 0.0;
+                        }
+                    }
+
+                    // Prepare to step in the new direction, along this single axis.
+                    fallbackNode->slope = fallbackAdjust;
+                }
+                else
+                {
+                    // Try as we might, we can't find a way to go downhill from here!
+                    if (debug) printf("score change = %lg\n", score3 - score1);
+                    throw std::logic_error("Solver is losing ground.");
+                }
             }
 
             // We have just micro-stepped by `deltaVoltage` along the descending gradient,
