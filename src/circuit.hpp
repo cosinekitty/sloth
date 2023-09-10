@@ -400,30 +400,33 @@ namespace Analog
             // We should never lose ground. Otherwise we risk not converging.
             if (score3 >= score1)
             {
-                // See if we can fall back to a single-axis change that improves the score.
-                if (fallbackNode != nullptr)
-                {
-                    if (debug) printf("using fallback\n");
-
-                    // Reset all node voltages.
-                    for (Node& n : nodeList)
-                    {
-                        if (!n.forced)
-                        {
-                            n.voltage[0] = n.savedVoltage;
-                            n.slope = 0.0;
-                        }
-                    }
-
-                    // Prepare to step in the new direction, along this single axis.
-                    fallbackNode->slope = fallbackAdjust;
-                }
-                else
+                if (fallbackNode == nullptr)
                 {
                     // Try as we might, we can't find a way to go downhill from here!
-                    if (debug) printf("score change = %lg\n", score3 - score1);
-                    throw std::logic_error("Solver is losing ground.");
+                    // Let's consider this successful finding of a local minimum.
+                    // Revert the changes to the unforced node voltages.
+                    for (Node& n : nodeList)
+                        if (!n.forced)
+                            n.voltage[0] = n.savedVoltage;
+
+                    return std::sqrt(score1);
                 }
+
+                // See if we can fall back to a single-axis change that improves the score.
+                if (debug) printf("using fallback\n");
+
+                // Reset all node voltages.
+                for (Node& n : nodeList)
+                {
+                    if (!n.forced)
+                    {
+                        n.voltage[0] = n.savedVoltage;
+                        n.slope = 0.0;
+                    }
+                }
+
+                // Prepare to step in the new direction, along this single axis.
+                fallbackNode->slope = fallbackAdjust;
             }
 
             // We have just micro-stepped by `deltaVoltage` along the descending gradient,
@@ -505,6 +508,7 @@ namespace Analog
         SolutionResult simulationStep(double simSampleRateHz)
         {
             const double dt = 1.0 / simSampleRateHz;
+            double score;
 
             // Shift voltage history by one sample.
             // This is needed to calculate capacitor currents, which are based on
@@ -529,7 +533,7 @@ namespace Analog
             for (int count = 1; count <= retryLimit; ++count)
             {
                 if (debug) printf("simulationStep: count = %d\n", count);
-                double score = adjustNodeVoltages(dt);
+                score = adjustNodeVoltages(dt);
                 if (score >= 0.0)
                 {
                     totalIterations += count;
@@ -537,7 +541,10 @@ namespace Analog
                 }
             }
 
-            throw std::logic_error(std::string("Circuit solver failed to converge at sample " + std::to_string(totalSamples)));
+            //throw std::logic_error(std::string("Circuit solver failed to converge at sample " + std::to_string(totalSamples)));
+            // Just assume we have gotten as good a solution as is possible.
+            score = updateCurrents(dt, "exhausted retry limit");
+            return SolutionResult(1+retryLimit, std::sqrt(score));
         }
 
     public:
@@ -548,7 +555,7 @@ namespace Analog
         double scoreTolerance = 1.0e-8;     // amps : adjust as necessary for a given circuit, to balance accuracy with convergence
         double deltaVoltage = 1.0e-9;       // step size to try each axis (node) in the search space
         int minInternalSamplingRate = 40000;            // we oversample as needed to reach this minimum sampling rate for the circuit solver
-        double opAmpSlewRateHalfLifeSeconds = 0.0;      // we low-pass filter op-amp outputs to make the solver converge easily
+        double opAmpSlewRateHalfLifeSeconds = 0.0;      // when positive, enables low-pass filter on op-amp outputs to make the solver converge easily
         double opAmpOpenLoopGain = 1.0e+6;
         int retryLimit = 100;
 

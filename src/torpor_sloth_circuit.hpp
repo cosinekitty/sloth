@@ -61,11 +61,6 @@ namespace Analog
             // This is necessary for the solver's numerical convergence,
             // due to chaining of op-amps that results in very high open-loop gains.
             opAmpSlewRateHalfLifeSeconds = 0.1;
-
-            // Reduce the open-loop gain on the op-amps, to make them easier to model.
-            //opAmpOpenLoopGain = 100000;
-
-            //scoreTolerance = 1.0e-6;
         }
 
         void setKnobPosition(double fraction)
