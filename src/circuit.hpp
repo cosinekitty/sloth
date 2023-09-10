@@ -67,7 +67,7 @@ namespace Analog
         int bNodeIndex;
 
         // Dynamic state
-        double current;      // [amps]
+        double current[2];      // [0]=this current, [1]=previous current
 
         Capacitor(double _capacitance, int _aNodeIndex, int _bNodeIndex)
             : capacitance(_capacitance)
@@ -79,7 +79,7 @@ namespace Analog
 
         void initialize()
         {
-            current = 0;
+            current[0] = current[1] = 0;
         }
     };
 
@@ -240,15 +240,24 @@ namespace Analog
                 n2.current += r.current;
             }
 
-            // Capacitor current: i = C (dV/dt)
+            // Capacitor currents require extrapolation over the time interval.
             for (Capacitor& c : capacitorList)
             {
                 Node& n1 = nodeList.at(c.aNodeIndex);
                 Node& n2 = nodeList.at(c.bNodeIndex);
+                // How much did the voltage across the capacitor change over the time interval?
                 double dV = (n1.voltage[0] - n2.voltage[0]) - (n1.voltage[1] - n2.voltage[1]);
-                c.current = c.capacitance * (dV/dt);
-                n1.current -= c.current;
-                n2.current += c.current;
+                // The change in voltage drop across the capacitor times the capacitance
+                // is exactly equal to the total amount of charge that flowed through the
+                // capacitor over the time interval. Divide charge by the time increment
+                // to obtain the mean current over the entire interval [t, t+dt].
+                double meanCurrent = c.capacitance * (dV/dt);
+                // Assume the mean current over the time interval is halfway between
+                // the previous current (stored in the Capacitor struct) and the new current
+                // (the unknown we want to solve for). Solving for the new current, we obtain:
+                c.current[0] = 2*meanCurrent - c.current[1];
+                n1.current -= c.current[0];
+                n2.current += c.current[0];
             }
 
             // Fixed voltage nodes must source/sink any amount of current discrepancy.
@@ -505,6 +514,11 @@ namespace Analog
             for (Node& node : nodeList)
                 for (int i = VOLTAGE_HISTORY-1; i > 0; --i)
                     node.voltage[i] = node.voltage[i-1];
+
+            // Remember the previous capacitor currents to accurately
+            // estimate how to update the capacitor currents.
+            for (Capacitor& c : capacitorList)
+                c.current[1] = c.current[0];
 
             // Update output voltages on the op-amps to reflect their new low-pass filtered state.
             for (OpAmp& o : opAmpList)
