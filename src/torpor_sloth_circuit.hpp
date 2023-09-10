@@ -60,10 +60,12 @@ namespace Analog
             // Enable low-pass filtering on the op-amps, for a gradual slew rate.
             // This is necessary for the solver's numerical convergence,
             // due to chaining of op-amps that results in very high open-loop gains.
-            opAmpSlewRateHalfLifeSeconds = 1.0;
+            opAmpSlewRateHalfLifeSeconds = 0.1;
 
             // Reduce the open-loop gain on the op-amps, to make them easier to model.
-            opAmpOpenLoopGain = 1.0;
+            //opAmpOpenLoopGain = 100000;
+
+            //scoreTolerance = 1.0e-6;
         }
 
         void setKnobPosition(double fraction)
