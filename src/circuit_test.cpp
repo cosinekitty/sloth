@@ -25,7 +25,6 @@ real_t v(real_t x, const char *fn, int lnum)
 #define V(x)    v(x, __FILE__, __LINE__)
 #define ABS(x)  std::abs(v(x, __FILE__, __LINE__))
 
-static int Animate();
 static int UnitTest_ResistorFeedback();
 static int UnitTest_VoltageDivider();
 static int UnitTest_ResistorCapacitorTimeConstant();
@@ -39,11 +38,6 @@ int main(int argc, const char *argv[])
         if (UnitTest_ResistorFeedback()) return 1;
         if (UnitTest_VoltageDivider()) return 1;
         if (UnitTest_Torpor()) return 1;
-
-        if (argc == 2 && !strcmp(argv[1], "test"))
-            return 0;   // stop after unit tests
-
-        return Animate();
     }
     catch (const std::exception& ex)
     {
@@ -324,12 +318,5 @@ static int UnitTest_Torpor()
     PerformanceStats stats = circuit.getPerformanceStats();
 
     printf("Torpor: PASS -- mean_iter=%lg\n", stats.meanIterationsPerSample());
-    return 0;
-}
-
-
-static int Animate()
-{
-    printf("INFO: Animation not yet implemented.\n");
     return 0;
 }
