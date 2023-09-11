@@ -41,7 +41,7 @@ int main(int argc, const char *argv[])
     }
     catch (const std::exception& ex)
     {
-        printf("animate.cpp : EXCEPTION: %s\n", ex.what());
+        printf("circuit_test EXCEPTION: %s\n", ex.what());
         return 9;
     }
 }
