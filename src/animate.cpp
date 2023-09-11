@@ -6,14 +6,14 @@
 #include "raylib.h"
 #include "torpor_sloth_circuit.hpp"
 
-const int SCREEN_WIDTH  = 1000;
-const int SCREEN_HEIGHT = 1000;
+const int SCREEN_WIDTH  = 800;
+const int SCREEN_HEIGHT = 800;
 const int SAMPLE_RATE = 44100;
 const int FRAME_RATE = 60;
 const int SAMPLES_PER_FRAME = SAMPLE_RATE / FRAME_RATE;
 
-const double MIN_VOLTAGE = -10.0;
-const double MAX_VOLTAGE = +10.0;
+const double MIN_VOLTAGE = -9.0;
+const double MAX_VOLTAGE = +9.0;
 
 struct PlotPoint
 {
