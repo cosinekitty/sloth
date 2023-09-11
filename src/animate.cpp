@@ -1,3 +1,12 @@
+/*
+    animate.cpp  -  Don Cross <cosinekitty@gmail.com>  -  2023-09-10
+
+    Runs the Sloth Torpor simulation and renders an X/Y plot.
+
+    https://github.com/cosinekitty/sloth
+*/
+
+#include <algorithm>
 #include <cstring>
 #include <cstdio>
 #include <cmath>
@@ -34,13 +43,13 @@ struct PlotPoint
 class Plotter
 {
 private:
-    const int maxTrailLength;
-    int trailIndex = 0;
+    const std::size_t trailLength;
+    std::size_t trailIndex = 0;
     std::vector<PlotPoint> trail;
 
 public:
-    explicit Plotter(int _maxTrailLength)
-        : maxTrailLength(_maxTrailLength)
+    explicit Plotter(int _trailLength)
+        : trailLength(std::max(2, _trailLength))
         {}
 
     void plot(const Analog::TorporSlothCircuit& circuit)
@@ -55,37 +64,35 @@ public:
         int sx = static_cast<int>(std::round(((vx - MIN_VOLTAGE) / (MAX_VOLTAGE - MIN_VOLTAGE)) * SCREEN_WIDTH));
         int sy = static_cast<int>(std::round(((MAX_VOLTAGE - vy) / (MAX_VOLTAGE - MIN_VOLTAGE)) * SCREEN_HEIGHT));
 
-        int length = static_cast<int>(trail.size());
-        if (length < maxTrailLength)
-        {
+        // On the first render, prefill the trail buffer.
+        while (trail.size() < trailLength)
             trail.push_back(PlotPoint(sx, sy));
-            for (int i = 1; i < length; ++i)
-            {
-                const PlotPoint &a = trail.at(i-1);
-                const PlotPoint &b = trail.at(i);
-                DrawLine(a.x, a.y, b.x, b.y, GREEN);
-            }
-        }
-        else
+
+        trail.at(trailIndex) = PlotPoint(sx, sy);
+        trailIndex = (trailIndex + 1) % trailLength;
+
+        Color color = BLACK;
+        Color target = GREEN;
+
+        const std::size_t fadeLength = std::max({target.r, target.g, target.b, static_cast<unsigned char>(1)});
+        const std::size_t fadeInterval = std::max(std::size_t{1}, trailLength / (2 * fadeLength));
+        std::size_t fadeCount = fadeInterval;
+
+        std::size_t i = trailIndex;
+        while (true)
         {
-            trail.at(trailIndex) = PlotPoint(sx, sy);
-            trailIndex = (trailIndex + 1) % maxTrailLength;
+            std::size_t j = (i + 1) % trailLength;
+            if (j == trailIndex)
+                break;
 
-            Color color = BLACK;
-            Color target = GREEN;
+            const PlotPoint &a = trail.at(i);
+            const PlotPoint &b = trail.at(j);
+            DrawLine(a.x, a.y, b.x, b.y, color);
+            i = j;
 
-            int i = trailIndex;
-            while (true)
+            if (--fadeCount == 0)
             {
-                int j = (i + 1) % maxTrailLength;
-                if (j == trailIndex)
-                    break;
-
-                const PlotPoint &a = trail.at(i);
-                const PlotPoint &b = trail.at(j);
-                DrawLine(a.x, a.y, b.x, b.y, color);
-                i = j;
-
+                fadeCount = fadeInterval;
                 if (color.r < target.r) ++color.r;
                 if (color.g < target.g) ++color.g;
                 if (color.b < target.b) ++color.b;
@@ -107,7 +114,7 @@ int main()
     circuit.setKnobPosition(0.25);
 
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Sloth Torpor");
-    SetTargetFPS(80);
+    SetTargetFPS(30);
     while (!WindowShouldClose())
     {
         BeginDrawing();
