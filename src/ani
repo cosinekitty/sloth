@@ -1,13 +1,13 @@
 #!/bin/bash
 
-cppcheck --error-exitcode=9 --inline-suppr --suppress=missingIncludeSystem -I . --enable=all animate.cpp || exit 1
+cppcheck --error-exitcode=9 --inline-suppr --suppress=missingIncludeSystem -I . -I /usr/local/include  --enable=all animate.cpp || exit 1
 
 if [[ "$1" == "debug" ]]; then
     CPPOPT="-Og -g"
 else
     CPPOPT="-O3"
 fi
-g++ ${CPPOPT} -Wall -Werror -o animate animate.cpp || exit 1
+g++ ${CPPOPT} -Wall -Werror -o animate animate.cpp -l raylib -l pthread -l dl || exit 1
 
 ./animate || exit 1
 exit 0
