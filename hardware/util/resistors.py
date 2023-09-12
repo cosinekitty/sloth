@@ -41,7 +41,18 @@ def FindResistors() -> int:
                 if score > bestScore:
                     bestScore = score
                     solution = (Q, R, S)
-    print(bestScore, solution)
+
+    if solution is None:
+        print('CANNOT SOLVE')
+        return 1
+    Q, R, S = solution
+    print('Q = {:0.0f}, R = {:0.0f}, S = {:0.0f}'.format(Q, R, S))
+    y1 = OutputVoltage(-12.0, Q, R, S)
+    y2 = OutputVoltage(+12.0, Q, R, S)
+    s1 = round((y1 / 5.0) * 1023)
+    s2 = round((y2 / 5.0) * 1023)
+    print('When x = -12V, y = {:0.6f}, reading = {:4d}'.format(y1, s1))
+    print('When x = +12V, y = {:0.6f}, reading = {:4d}'.format(y2, s2))
     return 0
 
 if __name__ == '__main__':
