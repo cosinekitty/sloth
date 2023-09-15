@@ -285,21 +285,15 @@ static int UnitTest_Torpor()
     for (int sample = 0; sample < nsamples; ++sample)
     {
         SolutionResult result = circuit.update(SAMPLE_RATE);
-        double led = circuit.ledVoltage();
         double vx = circuit.xVoltage();
         double vy = circuit.yVoltage();
+        double vz = circuit.zVoltage();
 
         if (sample % SAMPLE_RATE == 0)
         {
-            printf("Torpor: sample=%d, iterations=%d, score=%lg, led=%0.6lf, x=%0.6lf, y=%0.6lf\n",
+            printf("Torpor: sample=%d, iterations=%d, score=%lg, x=%0.6lf, y=%0.6lf, z=%0.6lf\n",
                 sample, result.iterations, result.score,
-                led, vx, vy);
-        }
-
-        if (led < circuit.VNEG || led > circuit.VPOS)
-        {
-            printf("Torpor: LED voltage is out of bounds!\n");
-            return 1;
+                vx, vy, vz);
         }
 
         if (vx < circuit.VNEG || vx > circuit.VPOS)
@@ -311,6 +305,12 @@ static int UnitTest_Torpor()
         if (vy < circuit.VNEG || vy > circuit.VPOS)
         {
             printf("Torpor: output voltage Y is out of bounds!\n");
+            return 1;
+        }
+
+        if (vz < circuit.VNEG || vz > circuit.VPOS)
+        {
+            printf("Torpor: output voltage Z is out of bounds!\n");
             return 1;
         }
     }

@@ -13,9 +13,9 @@ namespace Analog
     private:
         double *variableResistance{};
         double *controlVoltage{};
-        const double *ledNodeVoltage{};
         const double *xNodeVoltage{};
         const double *yNodeVoltage{};
+        const double *zNodeVoltage{};
 
     public:
         TorporSlothCircuit()
@@ -38,7 +38,7 @@ namespace Analog
 
             addResistor(1.0e+6, n1, n7);    // R1
             addResistor(4.7e+6, n1, n8);    // R2
-            int variableResistorIndex = addResistor(100.0e+3, n1, n3);    // R3
+            int variableResistorIndex = addResistor(100.0e+3, n1, n3);    // R3 + R9
             addResistor(100.0e+3, n6, n7);  // R4
             addResistor(100.0e+3, n5, n6);  // R5
             addResistor(100.0e+3, n2, n3);  // R6
@@ -53,9 +53,9 @@ namespace Analog
 
             variableResistance = &resistor(variableResistorIndex).resistance;
             controlVoltage = &nodeVoltage(n9);
-            ledNodeVoltage = &nodeVoltage(n8);
             xNodeVoltage = &nodeVoltage(n2);
             yNodeVoltage = &nodeVoltage(n5);
+            zNodeVoltage = &nodeVoltage(n7);
 
             // Enable low-pass filtering on the op-amps, for a gradual slew rate.
             // This is necessary for the solver's numerical convergence,
@@ -79,11 +79,6 @@ namespace Analog
             *controlVoltage = std::max(VNEG, std::min(VPOS, cv));
         }
 
-        double ledVoltage() const
-        {
-            return *ledNodeVoltage;
-        }
-
         double xVoltage() const
         {
             return *xNodeVoltage;
@@ -92,6 +87,11 @@ namespace Analog
         double yVoltage() const
         {
             return *yNodeVoltage;
+        }
+
+        double zVoltage() const
+        {
+            return *zNodeVoltage;
         }
     };
 }
