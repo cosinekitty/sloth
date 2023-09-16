@@ -125,11 +125,13 @@ namespace Analog
 
     struct SolutionResult
     {
-        int iterations;
+        int adjustNodeVoltagesCount;
+        int currentUpdates;
         double score;
 
-        SolutionResult(int _iterations, double _score)
-            : iterations(_iterations)
+        SolutionResult(int _adjustNodeVoltagesCount, int _currentUpdates, double _score)
+            : adjustNodeVoltagesCount(_adjustNodeVoltagesCount)
+            , currentUpdates(_currentUpdates)
             , score(_score)
             {}
     };
@@ -137,19 +139,26 @@ namespace Analog
 
     struct PerformanceStats
     {
-        long totalIterations;
+        long totalAdjustNodeVoltagesCount;
+        long totalCurrentUpdates;
         long totalSamples;
         double simulationTimeInSeconds;
 
-        PerformanceStats(long iterations, long samples, double simTime)
-            : totalIterations(iterations)
+        PerformanceStats(long adjustNodeVoltagesCount, long currentUpdates, long samples, double simTime)
+            : totalAdjustNodeVoltagesCount(adjustNodeVoltagesCount)
+            , totalCurrentUpdates(currentUpdates)
             , totalSamples(samples)
             , simulationTimeInSeconds(simTime)
             {}
 
-        double meanIterationsPerSample() const
+        double meanAdjustNodeVoltagesPerSample() const
         {
-            return (totalSamples == 0) ? 0.0 : (static_cast<double>(totalIterations) / totalSamples);
+            return (totalSamples == 0) ? 0.0 : (static_cast<double>(totalAdjustNodeVoltagesCount) / totalSamples);
+        }
+
+        double meanCurrentUpdatesPerSample() const
+        {
+            return (totalSamples == 0) ? 0.0 : (static_cast<double>(totalCurrentUpdates) / totalSamples);
         }
     };
 
@@ -162,7 +171,8 @@ namespace Analog
         std::vector<Resistor> resistorList;
         std::vector<Capacitor> capacitorList;
         std::vector<OpAmp> opAmpList;
-        long totalIterations = 0;
+        long totalAdjustNodeVoltagesCount = 0;
+        long totalCurrentUpdates = 0;
         long totalSamples = 0;
         double simulationTime = 0.0;
         double opAmpFilterCoeff = 0.0;
@@ -190,6 +200,8 @@ namespace Analog
 
         double updateCurrents(double dt, const char *comment)     // returns sum-of-squares of node current discrepancies
         {
+            ++totalCurrentUpdates;
+
             // Based on the voltage at each op-amp's input, calculate its output voltage.
             // Apply low-pass filtering to simulate a finite slew rate.
             // This is necessary to achieve convergence to a solution.
@@ -305,6 +317,8 @@ namespace Analog
 
         double adjustNodeVoltages(double dt)
         {
+            ++totalAdjustNodeVoltagesCount;
+
             // Measure the simulation error before changing any unforced node voltages.
             double score1 = updateCurrents(dt, "before voltage adjust");
             if (debug) printf("\nadjustNodeVoltages: sqrt(score1) = %lg\n", std::sqrt(score1));
@@ -530,21 +544,20 @@ namespace Analog
 
             extrapolateUnforcedNodeVoltages();
 
+            long currentUpdatesBefore = totalCurrentUpdates;
+
             for (int count = 1; count <= retryLimit; ++count)
             {
                 if (debug) printf("simulationStep: count = %d\n", count);
                 score = adjustNodeVoltages(dt);
                 if (score >= 0.0)
-                {
-                    totalIterations += count;
-                    return SolutionResult(count, score);
-                }
+                    return SolutionResult(count, totalCurrentUpdates - currentUpdatesBefore, score);
             }
 
             //throw std::logic_error(std::string("Circuit solver failed to converge at sample " + std::to_string(totalSamples)));
             // Just assume we have gotten as good a solution as is possible.
             score = updateCurrents(dt, "exhausted retry limit");
-            return SolutionResult(1+retryLimit, std::sqrt(score));
+            return SolutionResult(retryLimit, totalCurrentUpdates - currentUpdatesBefore, std::sqrt(score));
         }
 
     public:
@@ -572,7 +585,7 @@ namespace Analog
 
         void initialize()
         {
-            totalIterations = 0;
+            totalAdjustNodeVoltagesCount = 0;
             totalSamples = 0;
             simulationTime = 0.0;
 
@@ -751,12 +764,13 @@ namespace Analog
                 opAmpFilterCoeff = 0.0;
             }
 
-            SolutionResult result(0, -1.0);
+            SolutionResult result(0, 0, -1.0);
             for (int step = 0; step < factor; ++step)
             {
                 if (debug) printf("\nupdate: audio sample %ld, step %d\n", totalSamples, step);
                 SolutionResult stepResult = simulationStep(simSamplingRateHz);
-                result.iterations += stepResult.iterations;
+                result.adjustNodeVoltagesCount += stepResult.adjustNodeVoltagesCount;
+                result.currentUpdates += stepResult.currentUpdates;
                 result.score = stepResult.score;
             }
 
@@ -767,7 +781,7 @@ namespace Analog
 
         PerformanceStats getPerformanceStats() const
         {
-            return PerformanceStats(totalIterations, totalSamples, simulationTime);
+            return PerformanceStats(totalAdjustNodeVoltagesCount, totalCurrentUpdates, totalSamples, simulationTime);
         }
     };
 }

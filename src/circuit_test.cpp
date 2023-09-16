@@ -87,15 +87,15 @@ static int CheckSolution(
     double vOutExpected,
     double tolerance = 1.0e-4)
 {
-    Analog::SolutionResult result(0, 0.0);
+    Analog::SolutionResult result(0, 0, 0.0);
 
     for (int s = 0; s < nsamples; ++s)
         result = circuit.update(SAMPLE_RATE);
 
     double vOut = V(circuit.getNodeVoltage(outNodeIndex));
     double diff = ABS(vOut - vOutExpected);
-    printf("CheckSolution(%s): %d iterations, score = %lg amps, diff = %lg V on node %d\n",
-        name, result.iterations, result.score, diff, outNodeIndex);
+    printf("CheckSolution(%s): %d node voltage updates, %d current updates, score = %lg amps, diff = %lg V on node %d\n",
+        name, result.adjustNodeVoltagesCount, result.currentUpdates, result.score, diff, outNodeIndex);
 
     if (diff > tolerance)
     {
@@ -235,13 +235,14 @@ static int UnitTest_ResistorCapacitorTimeConstant()
         return 1;
     }
 
-    fprintf(outfile, "sample,time,iterations,score,voltage,expected,diff\n");
+    fprintf(outfile, "sample,time,adjustNodeVoltagesCount,score,voltage,expected,diff\n");
 
     // Charge up the capacitor by running for a simulated 3 seconds.
     const int nsamples = SAMPLE_RATE * 3;
-    int iterations = 0;
-    int maxIterations = 0;
-    int totalIterations = 0;
+    int adjustNodeVoltagesCount = 0;
+    int maxAdjustNodeVoltagesCount = 0;
+    long totalAdjustNodeVoltagesCount = 0;
+    long totalCurrentUpdates = 0;
     double score = 0.0;
     double maxdiff = 0.0;
     for (int sample = 0; sample < nsamples; ++sample)
@@ -259,15 +260,16 @@ static int UnitTest_ResistorCapacitorTimeConstant()
         if (sample % (SAMPLE_RATE / 100) == 0)
         {
             fprintf(outfile, "%d,%0.2lf,%d,%lg,%0.16lg,%0.16lg,%0.16lg\n",
-                sample, time, iterations, score, voltage, expected, diff);
+                sample, time, adjustNodeVoltagesCount, score, voltage, expected, diff);
 
             fflush(outfile);
         }
 
         SolutionResult result = circuit.update(SAMPLE_RATE);
-        iterations = result.iterations;
-        maxIterations = std::max(maxIterations, iterations);
-        totalIterations += iterations;
+        adjustNodeVoltagesCount = result.adjustNodeVoltagesCount;
+        maxAdjustNodeVoltagesCount = std::max(maxAdjustNodeVoltagesCount, adjustNodeVoltagesCount);
+        totalAdjustNodeVoltagesCount += adjustNodeVoltagesCount;
+        totalCurrentUpdates += result.currentUpdates;
         score = result.score;
     }
 
@@ -280,9 +282,15 @@ static int UnitTest_ResistorCapacitorTimeConstant()
         return 1;
     }
 
-    if (stats.totalIterations != totalIterations)
+    if (stats.totalAdjustNodeVoltagesCount != totalAdjustNodeVoltagesCount)
     {
-        printf("ResistorCapacitorTimeConstant: stats.totalIterations=%ld, but totalIterations=%d\n", stats.totalIterations, totalIterations);
+        printf("ResistorCapacitorTimeConstant: stats.totalAdjustNodeVoltagesCount=%ld, but totalAdjustNodeVoltagesCount=%ld\n", stats.totalAdjustNodeVoltagesCount, totalAdjustNodeVoltagesCount);
+        return 1;
+    }
+
+    if (stats.totalCurrentUpdates != totalCurrentUpdates)
+    {
+        printf("ResistorCapacitorTimeConstant: stats.totalCurrentUpdates=%ld, but totalCurrentUpdates=%ld\n", stats.totalCurrentUpdates, totalCurrentUpdates);
         return 1;
     }
 
@@ -292,8 +300,8 @@ static int UnitTest_ResistorCapacitorTimeConstant()
         return 1;
     }
 
-    double meanIterations = static_cast<double>(totalIterations) / nsamples;
-    printf("ResistorCapacitorTimeConstant: PASS (mean iterations = %0.3lf, max = %d, capacitor voltage error = %lg)\n", meanIterations, maxIterations, maxdiff);
+    double meanIterations = static_cast<double>(totalAdjustNodeVoltagesCount) / nsamples;
+    printf("ResistorCapacitorTimeConstant: PASS (mean iterations = %0.3lf, max = %d, capacitor voltage error = %lg)\n", meanIterations, maxAdjustNodeVoltagesCount, maxdiff);
     return 0;
 }
 
@@ -312,20 +320,28 @@ static int UnitTest_Torpor()
     circuit.setControlVoltage(-1.3);
     circuit.setKnobPosition(0.25);
 
+    long totalVoltageUpdates = 0;
+    long totalCurrentUpdates = 0;
+
     double startTime = TimeInSeconds();
     const int nseconds = 10;
     const int nsamples = nseconds * SAMPLE_RATE;
     for (int sample = 0; sample < nsamples; ++sample)
     {
         SolutionResult result = circuit.update(SAMPLE_RATE);
+        totalVoltageUpdates += result.adjustNodeVoltagesCount;
+        totalCurrentUpdates += result.currentUpdates;
         double vx = circuit.xVoltage();
         double vy = circuit.yVoltage();
         double vz = circuit.zVoltage();
 
         if (sample % SAMPLE_RATE == 0)
         {
-            printf("Torpor: sample=%d, iterations=%d, score=%lg, x=%0.6lf, y=%0.6lf, z=%0.6lf\n",
-                sample, result.iterations, result.score,
+            printf("Torpor: sample=%d, adjustNodeVoltagesCount=%d, currentUpdates=%d, score=%lg, x=%0.6lf, y=%0.6lf, z=%0.6lf\n",
+                sample,
+                result.adjustNodeVoltagesCount,
+                result.currentUpdates,
+                result.score,
                 vx, vy, vz);
         }
 
@@ -351,6 +367,29 @@ static int UnitTest_Torpor()
 
     PerformanceStats stats = circuit.getPerformanceStats();
 
-    printf("Torpor: PASS -- mean_iter=%lg, simulated %d seconds in %0.3lf seconds of real time.\n", stats.meanIterationsPerSample(), nseconds, elapsedTime);
+    if (stats.totalAdjustNodeVoltagesCount != totalVoltageUpdates)
+    {
+        printf("Torpor: FAIL: stats.totalAdjustNodeVoltagesCount = %ld, but totalVoltageUpdates = %ld\n",
+            stats.totalAdjustNodeVoltagesCount,
+            totalVoltageUpdates
+        );
+        return 1;
+    }
+
+    if (stats.totalCurrentUpdates != totalCurrentUpdates)
+    {
+        printf("Torpor: FAIL: stats.totalCurrentUpdates = %ld, but totalCurrentUpdates = %ld\n",
+            stats.totalCurrentUpdates,
+            totalCurrentUpdates
+        );
+        return 1;
+    }
+
+    printf("Torpor: PASS -- meanAdjustNodeVoltages=%lg, meanCurrentUpdates=%lg, simulated %d seconds in %0.3lf seconds of real time.\n",
+        stats.meanAdjustNodeVoltagesPerSample(),
+        stats.meanCurrentUpdatesPerSample(),
+        nseconds,
+        elapsedTime
+    );
     return 0;
 }
