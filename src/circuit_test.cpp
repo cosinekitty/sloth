@@ -320,7 +320,7 @@ static int UnitTest_Torpor()
     long totalCurrentUpdates = 0;
 
     double startTime = TimeInSeconds();
-    const int nseconds = 10;
+    const int nseconds = 120;
     const int nsamples = nseconds * SAMPLE_RATE;
     for (int sample = 0; sample < nsamples; ++sample)
     {
