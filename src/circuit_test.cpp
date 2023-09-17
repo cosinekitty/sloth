@@ -343,19 +343,19 @@ static int UnitTest_Torpor()
 
         if (vx < circuit.VNEG || vx > circuit.VPOS)
         {
-            printf("Torpor: output voltage vx=%lg is out of bounds!\n", vx);
+            printf("Torpor(%d): output voltage vx=%lg is out of bounds!\n", sample, vx);
             return 1;
         }
 
         if (vy < circuit.VNEG || vy > circuit.VPOS)
         {
-            printf("Torpor: output voltage vy=%lg is out of bounds!\n", vy);
+            printf("Torpor(%d): output voltage vy=%lg is out of bounds!\n", sample, vy);
             return 1;
         }
 
         if (vz < circuit.VNEG || vz > circuit.VPOS)
         {
-            printf("Torpor: output voltage vz=%lg is out of bounds!\n", vz);
+            printf("Torpor(%d): output voltage vz=%lg is out of bounds!\n", sample, vz);
             return 1;
         }
     }
