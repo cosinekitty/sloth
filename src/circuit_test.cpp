@@ -85,7 +85,7 @@ static int CheckSolution(
     const char *name,
     int outNodeIndex,
     double vOutExpected,
-    double tolerance = 1.0e-4)
+    double voltageTolerance = 2.0e-6)
 {
     Analog::SolutionResult result(0, 0, 0.0);
 
@@ -97,9 +97,9 @@ static int CheckSolution(
     printf("CheckSolution(%s): %d node voltage updates, %d current updates, rms = %lg amps, diff = %lg V on node %d\n",
         name, result.adjustNodeVoltagesCount, result.currentUpdates, result.rmsCurrentError, diff, outNodeIndex);
 
-    if (diff > tolerance)
+    if (diff > voltageTolerance)
     {
-        printf("FAIL(%s): EXCESSIVE voltage error %f on node %d.\n", name, diff, outNodeIndex);
+        printf("FAIL(%s): EXCESSIVE voltage error %lg on node %d.\n", name, diff, outNodeIndex);
         return 1;
     }
     return 0;
@@ -186,7 +186,7 @@ static int UnitTest_VoltageDivider()
 
     const double i1 = i0 / 2.0;     // half the current goes through the parallel resistor
     diff = ABS(r1.current - i1);
-    if (diff > 1.0e-8)
+    if (diff > 6.0e-10)
     {
         printf("FAIL(VoltageDivider): EXCESSIVE r1.current error = %lg\n", diff);
         return 1;
@@ -291,7 +291,7 @@ static int UnitTest_ResistorCapacitorTimeConstant()
         return 1;
     }
 
-    if (maxdiff > 3.31e-5)
+    if (maxdiff > 1.2e-5)
     {
         printf("ResistorCapacitorTimeConstant: FAIL - excessive capacitor voltage error = %0.6lg\n", maxdiff);
         return 1;
