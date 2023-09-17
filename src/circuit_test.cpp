@@ -115,14 +115,12 @@ static int UnitTest_ResistorFeedback()
     Circuit circuit;
 
     circuit.debug = false;
-    circuit.opAmpSlewRateHalfLifeSeconds = 0.02;
 
     int n0 = circuit.createNode();
     int n1 = circuit.createNode();
     int n2 = circuit.createNode();
-    int ng = circuit.createGroundNode();
 
-    if (circuit.getNodeCount() != 4)
+    if (circuit.getNodeCount() != 3)
     {
         printf("FAIL(ResistorFeedback): Incorrect node count = %d\n", circuit.getNodeCount());
         return 1;
@@ -131,19 +129,18 @@ static int UnitTest_ResistorFeedback()
     circuit.allocateForcedVoltageNode(n0);
     circuit.addResistor(1000.0f, n0, n1);
     circuit.addResistor(10000.0f, n1, n2);
-    circuit.addOpAmp(ng, n1, n2);
+    circuit.addLinearAmp(n1, n2);
     circuit.lock();
 
     double& vIn = circuit.nodeVoltage(n0);
     vIn = 1.0;
-    double vExact = -1.0e+7 / 1000011.0;    // manually derived exact solution
-    if (CheckSolution(circuit, 2*SAMPLE_RATE, "ResistorFeedback1", n2, vExact)) return 1;
+    if (CheckSolution(circuit, 1, "ResistorFeedback1", n2, -10.0 * vIn)) return 1;
 
     vIn = 2.0;
-    if (CheckSolution(circuit, 2*SAMPLE_RATE, "ResistorFeedback2", n2, circuit.VNEG)) return 1;
+    if (CheckSolution(circuit, 1, "ResistorFeedback2", n2, -10.0 * vIn)) return 1;
 
     vIn = -2.0;
-    if (CheckSolution(circuit, 2*SAMPLE_RATE, "ResistorFeedback3", n2, circuit.VPOS)) return 1;
+    if (CheckSolution(circuit, 1, "ResistorFeedback3", n2, -10.0 * vIn)) return 1;
 
     printf("ResistorFeedback: PASS\n");
     return 0;
@@ -314,7 +311,7 @@ static int UnitTest_Torpor()
 
     TorporSlothCircuit circuit;
 
-    circuit.debug = false;
+    circuit.debug = true;
     circuit.deltaVoltage = 1.0e-9;
     circuit.retryLimit = 100;
     circuit.setControlVoltage(-1.3);
@@ -335,7 +332,7 @@ static int UnitTest_Torpor()
         double vy = circuit.yVoltage();
         double vz = circuit.zVoltage();
 
-        if (sample % SAMPLE_RATE == 0)
+        //if (sample % SAMPLE_RATE == 0)
         {
             printf("Torpor: sample=%d, adjustNodeVoltagesCount=%d, currentUpdates=%d, score=%lg, x=%0.6lf, y=%0.6lf, z=%0.6lf\n",
                 sample,
@@ -347,19 +344,19 @@ static int UnitTest_Torpor()
 
         if (vx < circuit.VNEG || vx > circuit.VPOS)
         {
-            printf("Torpor: output voltage X is out of bounds!\n");
+            printf("Torpor: output voltage vx=%lg is out of bounds!\n", vx);
             return 1;
         }
 
         if (vy < circuit.VNEG || vy > circuit.VPOS)
         {
-            printf("Torpor: output voltage Y is out of bounds!\n");
+            printf("Torpor: output voltage vy=%lg is out of bounds!\n", vy);
             return 1;
         }
 
         if (vz < circuit.VNEG || vz > circuit.VPOS)
         {
-            printf("Torpor: output voltage Z is out of bounds!\n");
+            printf("Torpor: output voltage vz=%lg is out of bounds!\n", vz);
             return 1;
         }
     }

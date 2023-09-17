@@ -31,10 +31,10 @@ namespace Analog
             int n8 = createNode();
             int n9 = createForcedVoltageNode(0.0);   // CV input node
 
-            addOpAmp(ng, n6, n7);       // U2
-            addOpAmp(ng, n7, n8);       // U1
-            addOpAmp(ng, n1, n2);       // U3
-            addOpAmp(ng, n4, n5);       // U4
+            addLinearAmp(n1, n2);       // U3
+            addLinearAmp(n4, n5);       // U4
+            addLinearAmp(n6, n7);       // U2
+            addComparator(n7, n8);      // U1
 
             addResistor(1.0e+6, n1, n7);    // R1
             addResistor(4.7e+6, n1, n8);    // R2
@@ -56,11 +56,6 @@ namespace Analog
             xNodeVoltage = &nodeVoltage(n2);
             yNodeVoltage = &nodeVoltage(n5);
             zNodeVoltage = &nodeVoltage(n7);
-
-            // Enable low-pass filtering on the op-amps, for a gradual slew rate.
-            // This is necessary for the solver's numerical convergence,
-            // due to chaining of op-amps that results in very high open-loop gains.
-            opAmpSlewRateHalfLifeSeconds = 0.1;
         }
 
         void setKnobPosition(double fraction)
