@@ -311,9 +311,7 @@ static int UnitTest_Torpor()
 
     TorporSlothCircuit circuit;
 
-    circuit.debug = true;
-    circuit.deltaVoltage = 1.0e-9;
-    circuit.retryLimit = 100;
+    circuit.debug = false;
     circuit.setControlVoltage(-1.3);
     circuit.setKnobPosition(0.25);
 
@@ -332,7 +330,7 @@ static int UnitTest_Torpor()
         double vy = circuit.yVoltage();
         double vz = circuit.zVoltage();
 
-        //if (sample % SAMPLE_RATE == 0)
+        if (sample % SAMPLE_RATE == 0)
         {
             printf("Torpor: sample=%d, adjustNodeVoltagesCount=%d, currentUpdates=%d, rms=%lg, x=%0.6lf, y=%0.6lf, z=%0.6lf\n",
                 sample,
