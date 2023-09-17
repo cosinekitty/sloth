@@ -94,8 +94,8 @@ static int CheckSolution(
 
     double vOut = V(circuit.getNodeVoltage(outNodeIndex));
     double diff = ABS(vOut - vOutExpected);
-    printf("CheckSolution(%s): %d node voltage updates, %d current updates, score = %lg amps, diff = %lg V on node %d\n",
-        name, result.adjustNodeVoltagesCount, result.currentUpdates, result.score, diff, outNodeIndex);
+    printf("CheckSolution(%s): %d node voltage updates, %d current updates, rms = %lg amps, diff = %lg V on node %d\n",
+        name, result.adjustNodeVoltagesCount, result.currentUpdates, result.rmsCurrentError, diff, outNodeIndex);
 
     if (diff > tolerance)
     {
@@ -216,7 +216,7 @@ static int UnitTest_ResistorCapacitorTimeConstant()
     const double supplyVoltage = 1.0;
 
     Circuit circuit;
-    circuit.scoreTolerance = 5.0e-11;
+    //circuit.rmsCurrentErrorTolerance = 5.0e-11;
     int n0 = circuit.createForcedVoltageNode(supplyVoltage);
     int n1 = circuit.createNode();
     int n2 = circuit.createGroundNode();
@@ -240,7 +240,7 @@ static int UnitTest_ResistorCapacitorTimeConstant()
     int maxAdjustNodeVoltagesCount = 0;
     long totalAdjustNodeVoltagesCount = 0;
     long totalCurrentUpdates = 0;
-    double score = 0.0;
+    double rms = 0.0;
     double maxdiff = 0.0;
     for (int sample = 0; sample < nsamples; ++sample)
     {
@@ -257,7 +257,7 @@ static int UnitTest_ResistorCapacitorTimeConstant()
         if (sample % (SAMPLE_RATE / 100) == 0)
         {
             fprintf(outfile, "%d,%0.2lf,%d,%lg,%0.16lg,%0.16lg,%0.16lg\n",
-                sample, time, adjustNodeVoltagesCount, score, voltage, expected, diff);
+                sample, time, adjustNodeVoltagesCount, rms, voltage, expected, diff);
 
             fflush(outfile);
         }
@@ -267,7 +267,7 @@ static int UnitTest_ResistorCapacitorTimeConstant()
         maxAdjustNodeVoltagesCount = std::max(maxAdjustNodeVoltagesCount, adjustNodeVoltagesCount);
         totalAdjustNodeVoltagesCount += adjustNodeVoltagesCount;
         totalCurrentUpdates += result.currentUpdates;
-        score = result.score;
+        rms = result.rmsCurrentError;
     }
 
     fclose(outfile);
@@ -334,11 +334,11 @@ static int UnitTest_Torpor()
 
         //if (sample % SAMPLE_RATE == 0)
         {
-            printf("Torpor: sample=%d, adjustNodeVoltagesCount=%d, currentUpdates=%d, score=%lg, x=%0.6lf, y=%0.6lf, z=%0.6lf\n",
+            printf("Torpor: sample=%d, adjustNodeVoltagesCount=%d, currentUpdates=%d, rms=%lg, x=%0.6lf, y=%0.6lf, z=%0.6lf\n",
                 sample,
                 result.adjustNodeVoltagesCount,
                 result.currentUpdates,
-                result.score,
+                result.rmsCurrentError,
                 vx, vy, vz);
         }
 
