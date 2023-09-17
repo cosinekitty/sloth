@@ -216,7 +216,7 @@ static int UnitTest_ResistorCapacitorTimeConstant()
     const double supplyVoltage = 1.0;
 
     Circuit circuit;
-    //circuit.rmsCurrentErrorTolerance = 5.0e-11;
+    circuit.initAlpha = 1.0e-5;
     int n0 = circuit.createForcedVoltageNode(supplyVoltage);
     int n1 = circuit.createNode();
     int n2 = circuit.createGroundNode();
@@ -298,7 +298,8 @@ static int UnitTest_ResistorCapacitorTimeConstant()
     }
 
     double meanIterations = static_cast<double>(totalAdjustNodeVoltagesCount) / nsamples;
-    printf("ResistorCapacitorTimeConstant: PASS (mean iterations = %0.3lf, max = %d, capacitor voltage error = %lg)\n", meanIterations, maxAdjustNodeVoltagesCount, maxdiff);
+    printf("ResistorCapacitorTimeConstant: PASS (mean iterations = %0.3lf, max = %d, mean current updates = %lg, capacitor voltage error = %lg, alpha range = [%lg, %lg])\n",
+        meanIterations, maxAdjustNodeVoltagesCount, stats.meanCurrentUpdatesPerSample(), maxdiff, stats.minAlpha, stats.maxAlpha);
     return 0;
 }
 

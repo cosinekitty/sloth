@@ -150,12 +150,16 @@ namespace Analog
         long totalCurrentUpdates;
         long totalSamples;
         double simulationTimeInSeconds;
+        double minAlpha;
+        double maxAlpha;
 
-        PerformanceStats(long adjustNodeVoltagesCount, long currentUpdates, long samples, double simTime)
+        PerformanceStats(long adjustNodeVoltagesCount, long currentUpdates, long samples, double simTime, double _minAlpha, double _maxAlpha)
             : totalAdjustNodeVoltagesCount(adjustNodeVoltagesCount)
             , totalCurrentUpdates(currentUpdates)
             , totalSamples(samples)
             , simulationTimeInSeconds(simTime)
+            , minAlpha(_minAlpha)
+            , maxAlpha(_maxAlpha)
             {}
 
         double meanAdjustNodeVoltagesPerSample() const
@@ -716,7 +720,7 @@ namespace Analog
 
         PerformanceStats getPerformanceStats() const
         {
-            return PerformanceStats(totalAdjustNodeVoltagesCount, totalCurrentUpdates, totalSamples, simulationTime);
+            return PerformanceStats(totalAdjustNodeVoltagesCount, totalCurrentUpdates, totalSamples, simulationTime, minAlpha, maxAlpha);
         }
     };
 }
