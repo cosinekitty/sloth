@@ -306,8 +306,8 @@ namespace Analog
                 n.savedVoltage = n.voltage[0];
 
             // The search space is the vector of all unforced node voltages.
-            // Calculate the unit vector in the direction of steepest descent.
-            // This is the negative of the normalized gradient vector.
+            // Calculate a vector in the direction of steepest descent.
+            // This is the negative of the gradient vector.
             // Store the vector in the `slope` fields of the unforced voltage nodes.
             // Approximate the gradient by a tiny change in voltage, up and down,
             // for each unforced voltage node.
@@ -325,7 +325,7 @@ namespace Analog
 
                     n.voltage[0] = n.savedVoltage;
 
-                    n.slope = pscore - nscore;
+                    n.slope = (nscore - pscore) / (2 * deltaVoltage);
                     magnitude += n.slope * n.slope;
                 }
             }
@@ -338,10 +338,10 @@ namespace Analog
                 return std::sqrt(score0);
             }
 
-            // Normalize the gradient vector and negate it.
-            magnitude = -std::sqrt(magnitude);
+            magnitude = std::sqrt(magnitude);
             for (Node& n : nodeList)
-                n.slope /= magnitude;
+                if (!n.forcedVoltage)
+                    n.slope /= magnitude;       // convert to dimensionless unit vector
 
             // Now that we have the unit vector pointing in the direction of steepest descent,
             // we can search for a scale parameter `alpha` that moves us as far as possible while
@@ -361,7 +361,7 @@ namespace Analog
                         n.voltage[0] = n.savedVoltage + (alpha * n.slope);
 
                 double score1 = updateCurrents(dt);
-                if (score1 <= score0 - stepControlParameter*alpha)
+                if (score1 <= score0 - stepControlParameter*alpha*magnitude)
                 {
                     // Maintain debug info about the range of alpha values that were satisfactory.
                     if (minAlpha < 0.0 || alpha < minAlpha)
