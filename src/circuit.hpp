@@ -19,13 +19,13 @@ namespace Analog
 
     struct Node
     {
-        double voltage[VOLTAGE_HISTORY]{};    // voltage[0] = this sample, voltage[1] = previous sample, ... [volts]
-        double savedVoltage{};              // temporary scratch-pad for holding pre-mutated voltage [volts]
-        double current{};               // net current flowing into the node. must be zero to achieve a solution. [amps]
-        double slope{};                 // delta E, where E = sum(current^2); gradient steepness from changing this node's voltage
-        bool forcedVoltage = false;     // has a voltage forcer already assigned a required value to this node's voltage?
-        bool currentSink = false;       // does this node automatically allow an arbitrary current excess/deficit?
-        bool isActiveDeviceInput = false;   // helps validate correct evaluation order of active devices
+        double voltage[VOLTAGE_HISTORY]{};      // voltage[0] = this sample, voltage[1] = previous sample, ... [volts]
+        double savedVoltage{};                  // temporary scratch-pad for holding pre-mutated voltage [volts]
+        double current{};                       // net current flowing into the node. must be zero to achieve a solution. [amps]
+        double slope{};                         // delta E, where E = sum(current^2); gradient steepness from changing this node's voltage
+        bool forcedVoltage = false;             // has a voltage forcer already assigned a required value to this node's voltage?
+        bool currentSink = false;               // does this node automatically allow an arbitrary current excess/deficit?
+        bool isActiveDeviceInput = false;       // helps validate correct evaluation order of active devices
 
         void initialize()
         {
@@ -383,13 +383,13 @@ namespace Analog
             }
         }
 
-        void confirmLocked()
+        void confirmLocked() const
         {
             if (!isLocked)
                 throw std::logic_error("You must lock the circuit before accessing references to nodes or components.");
         }
 
-        void confirmUnlocked()
+        void confirmUnlocked() const
         {
             if (isLocked)
                 throw std::logic_error("Once the circuit is locked, you cannot add new nodes or components.");
@@ -633,6 +633,12 @@ namespace Analog
             return nodeList.size();
         }
 
+        const Node& getNode(int nodeIndex) const
+        {
+            confirmLocked();
+            return nodeList.at(nodeIndex);
+        }
+
         double getNodeVoltage(int nodeIndex) const
         {
             return nodeList.at(nodeIndex).voltage[0];
@@ -655,12 +661,24 @@ namespace Analog
             return resistorList.at(index);
         }
 
+        const Resistor& resistor(int index) const
+        {
+            confirmLocked();
+            return resistorList.at(index);
+        }
+
         int getCapacitorCount() const
         {
             return capacitorList.size();
         }
 
         Capacitor& capacitor(int index)
+        {
+            confirmLocked();
+            return capacitorList.at(index);
+        }
+
+        const Capacitor& capacitor(int index) const
         {
             confirmLocked();
             return capacitorList.at(index);
@@ -677,12 +695,23 @@ namespace Analog
             return linearAmpList.at(index);
         }
 
+        const LinearAmp& linearAmp(int index) const
+        {
+            confirmLocked();
+            return linearAmpList.at(index);
+        }
+
         int getComparatorCount() const
         {
             return comparatorList.size();
         }
 
         Comparator& comparator(int index)
+        {
+            return comparatorList.at(index);
+        }
+
+        const Comparator& comparator(int index) const
         {
             return comparatorList.at(index);
         }

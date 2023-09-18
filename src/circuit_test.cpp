@@ -57,6 +57,7 @@ real_t v(real_t x, const char *fn, int lnum)
 #define V(x)    v(x, __FILE__, __LINE__)
 #define ABS(x)  std::abs(v(x, __FILE__, __LINE__))
 
+static void Print(const Analog::Circuit& circuit);
 static int UnitTest_ResistorFeedback();
 static int UnitTest_VoltageDivider();
 static int UnitTest_ResistorCapacitorTimeConstant();
@@ -311,6 +312,7 @@ static int UnitTest_Torpor()
     printf("Torpor: starting\n");
 
     TorporSlothCircuit circuit;
+    Print(circuit);
 
     circuit.debug = false;
     circuit.setControlVoltage(-1.3);
@@ -388,4 +390,70 @@ static int UnitTest_Torpor()
         elapsedTime
     );
     return 0;
+}
+
+
+inline const char *BoolString(bool x)
+{
+    return x ? "true" : "false";
+}
+
+
+inline const char *Sep(int i, int n)
+{
+    return (i+1 < n) ? "," : "";
+}
+
+static void Print(const Analog::Circuit& circuit)
+{
+    using namespace Analog;
+
+    printf("{\n");
+
+    printf("    \"nodes\": [\n");
+    const int nn = circuit.getNodeCount();
+    for (int i = 0; i < nn; ++i)
+    {
+        const Node& n = circuit.getNode(i);
+        printf("        {\"forcedVoltage\":%s, \"currentSink\":%s}%s\n", BoolString(n.forcedVoltage), BoolString(n.currentSink), Sep(i, nn));
+    }
+    printf("    ],\n");
+
+    printf("    \"resistors\": [\n");
+    const int nr = circuit.getResistorCount();
+    for (int i = 0; i < nr; ++i)
+    {
+        const Resistor& r = circuit.resistor(i);
+        printf("        {\"resistance\": %0.16lg, \"nodes\":[%d, %d]}%s\n", r.resistance, r.aNodeIndex, r.bNodeIndex, Sep(i, nr));
+    }
+    printf("    ],\n");
+
+    printf("    \"capacitors\": [\n");
+    const int nc = circuit.getCapacitorCount();
+    for (int i = 0; i < nc; ++i)
+    {
+        const Capacitor& c = circuit.capacitor(i);
+        printf("        {\"capacitance\": %0.16lg, \"nodes\":[%d, %d]}%s\n", c.capacitance, c.aNodeIndex, c.bNodeIndex, Sep(i, nc));
+    }
+    printf("    ],\n");
+
+    printf("    \"linearAmps\": [\n");
+    const int na = circuit.getLinearAmpCount();
+    for (int i = 0; i < na; ++i)
+    {
+        const LinearAmp& a = circuit.linearAmp(i);
+        printf("        {\"nodes\": [%d, %d]}%s\n", a.negNodeIndex, a.outNodeIndex, Sep(i, na));
+    }
+    printf("    ],\n");
+
+    printf("    \"comparators\": [\n");
+    const int nk = circuit.getComparatorCount();
+    for (int i = 0; i < nk; ++i)
+    {
+        const Comparator& k = circuit.comparator(i);
+        printf("        {\"nodes\": [%d, %d]}%s\n", k.negNodeIndex, k.outNodeIndex, Sep(i, nk));
+    }
+    printf("    ]\n");
+
+    printf("}\n");
 }
