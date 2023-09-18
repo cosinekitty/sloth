@@ -113,9 +113,6 @@ namespace Analog
         int negNodeIndex;
         int outNodeIndex;
 
-        // Dynamic state
-        double voltage;     // keep voltage stable from previous sample while solving the circuit, for stability
-
         Comparator(int _negNodeIndex, int _outNodeIndex)
             : negNodeIndex(_negNodeIndex)
             , outNodeIndex(_outNodeIndex)
@@ -125,7 +122,6 @@ namespace Analog
 
         void initialize()
         {
-            voltage = COMPARATOR_HI_VOLTAGE;
         }
     };
 
@@ -375,7 +371,9 @@ namespace Analog
                         maxAlpha = alpha;
 
                     // Leave voltages adjusted and return the improved rms current error.
-                    return std::sqrt(score1);
+                    double rms = std::sqrt(score1);
+                    if (debug) printf("updateNodeVoltages: rms=%lg, alpha=%lg\n", rms, alpha);
+                    return rms;
                 }
 
                 // Try again, closer to the starting point.
@@ -421,6 +419,11 @@ namespace Analog
             {
                 bool halt;
                 double rmsCurrentError = adjustNodeVoltages(dt, halt);
+                if (debug)
+                {
+                    printf("simulationStep(%d): rms=%lg\n", count, rmsCurrentError);
+                    debugState();
+                }
                 if (halt || rmsCurrentError < rmsCurrentErrorTolerance)
                     return SolutionResult(count, totalCurrentUpdates - currentUpdatesBefore, rmsCurrentError);
             }
@@ -451,8 +454,8 @@ namespace Analog
 
         void updateComparatorOutputs()
         {
-            // For simulation stability, allow comparator outputs to change only
-            // after we have solved a simulation step. This is essentially a 1-sample
+            // For simulation stability, allow comparator outputs to change between
+            // node voltage solver steps only. This is essentially a 1-sample
             // slew rate for each comparator. This way, comparator outputs cannot toggle
             // back and forth while we are trying to solve the circuit.
             for (Comparator& k : comparatorList)
@@ -729,6 +732,8 @@ namespace Analog
             // Make absolutely sure the factor is a postive integer.
             const int factor = std::max(1, static_cast<int>(std::ceil(realFactor)));
             const double simSamplingRateHz = factor * audioSampleRateHz;
+
+            updateComparatorOutputs();
 
             SolutionResult result(0, 0, -1.0);
             for (int step = 0; step < factor; ++step)
