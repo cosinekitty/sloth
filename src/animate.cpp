@@ -110,8 +110,8 @@ int main()
     Plotter plotter(5000);
 
     TorporSlothCircuit circuit;
-    circuit.setControlVoltage(-1.3);
-    circuit.setKnobPosition(0.25);
+    circuit.setControlVoltage(-1.0);
+    circuit.setKnobPosition(0.0);
 
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Sloth Torpor");
     SetTargetFPS(30);

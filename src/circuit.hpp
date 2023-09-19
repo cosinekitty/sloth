@@ -19,15 +19,17 @@ namespace Analog
 
     struct Node
     {
-        double voltage[VOLTAGE_HISTORY]{};    // voltage[0] = this sample, voltage[1] = previous sample, ... [volts]
-        double savedVoltage{};  // temporary scratch-pad for holding pre-mutated voltage [volts]
-        double current{};       // net current flowing into the node. must be zero to achieve a solution. [amps]
-        double slope{};         // delta E, where E = sum(current^2); gradient steepness from changing this node's voltage
-        bool forced = false;    // has a voltage forcer already assigned a required value to this node's voltage?
+        double voltage[VOLTAGE_HISTORY]{};      // voltage[0] = this sample, voltage[1] = previous sample, ... [volts]
+        double savedVoltage{};                  // temporary scratch-pad for holding pre-mutated voltage [volts]
+        double current{};                       // net current flowing into the node. must be zero to achieve a solution. [amps]
+        double slope{};                         // delta E, where E = sum(current^2); gradient steepness from changing this node's voltage
+        bool forcedVoltage = false;             // has a voltage forcer already assigned a required value to this node's voltage?
+        bool currentSink = false;               // does this node automatically allow an arbitrary current excess/deficit?
+        bool isActiveDeviceInput = false;       // helps validate correct evaluation order of active devices
 
         void initialize()
         {
-            if (!forced)
+            if (!forcedVoltage)
                 for (int i = 0; i < VOLTAGE_HISTORY; ++i)
                     voltage[i] = 0;
         }
@@ -84,20 +86,14 @@ namespace Analog
     };
 
 
-    struct OpAmp    // Positive input is always connected to ground, so we don't need to model it.
+    struct LinearAmp    // ideal op-amp with real ground on positive input, and assumed virtual ground on negative input
     {
         // Configuration
-        int posNodeIndex;
         int negNodeIndex;
         int outNodeIndex;
 
-        // Dynamic state
-        double current;     // current leaving the output terminal [amps]
-        double voltage[2];  // low-pass filtered output voltage [0]=this, [1]=prev
-
-        OpAmp(int _posNodeIndex, int _negNodeIndex, int _outNodeIndex)
-            : posNodeIndex(_posNodeIndex)
-            , negNodeIndex(_negNodeIndex)
+        LinearAmp(int _negNodeIndex, int _outNodeIndex)
+            : negNodeIndex(_negNodeIndex)
             , outNodeIndex(_outNodeIndex)
         {
             initialize();
@@ -105,20 +101,27 @@ namespace Analog
 
         void initialize()
         {
-            current = 0;
-            voltage[0] = voltage[1] = 0;
+        }
+    };
+
+    const double COMPARATOR_LO_VOLTAGE = -10.64;    // measured from my own Torpor circuit : TL074CN U1 pin 1
+    const double COMPARATOR_HI_VOLTAGE = +11.38;    // measured from my own Torpor circuit : TL074CN U1 pin 1
+
+    struct Comparator   // op-amp with positive input grounded, arbitrary negative input, output = +/- binary
+    {
+        // Configuration
+        int negNodeIndex;
+        int outNodeIndex;
+
+        Comparator(int _negNodeIndex, int _outNodeIndex)
+            : negNodeIndex(_negNodeIndex)
+            , outNodeIndex(_outNodeIndex)
+        {
+            initialize();
         }
 
-        std::string to_string() const
+        void initialize()
         {
-            std::string text = "OpAmp[POS=";
-            text += std::to_string(posNodeIndex);
-            text += ", NEG=";
-            text += std::to_string(negNodeIndex);
-            text += ", OUT=";
-            text += std::to_string(outNodeIndex);
-            text += "]";
-            return text;
         }
     };
 
@@ -127,12 +130,12 @@ namespace Analog
     {
         int adjustNodeVoltagesCount;
         int currentUpdates;
-        double score;
+        double rmsCurrentError;
 
-        SolutionResult(int _adjustNodeVoltagesCount, int _currentUpdates, double _score)
+        SolutionResult(int _adjustNodeVoltagesCount, int _currentUpdates, double _rmsCurrentError)
             : adjustNodeVoltagesCount(_adjustNodeVoltagesCount)
             , currentUpdates(_currentUpdates)
-            , score(_score)
+            , rmsCurrentError(_rmsCurrentError)
             {}
     };
 
@@ -170,12 +173,12 @@ namespace Analog
         std::vector<Node> nodeList;
         std::vector<Resistor> resistorList;
         std::vector<Capacitor> capacitorList;
-        std::vector<OpAmp> opAmpList;
+        std::vector<LinearAmp> linearAmpList;
+        std::vector<Comparator> comparatorList;
         long totalAdjustNodeVoltagesCount = 0;
         long totalCurrentUpdates = 0;
         long totalSamples = 0;
         double simulationTime = 0.0;
-        double opAmpFilterCoeff = 0.0;
 
         int v(int nodeIndex) const
         {
@@ -190,7 +193,7 @@ namespace Analog
 
             for (Node& n : nodeList)
             {
-                if (!n.forced)
+                if (!n.forcedVoltage)
                 {
                     double dV = n.voltage[1] - n.voltage[2];
                     n.voltage[0] = n.voltage[1] + dV;
@@ -198,44 +201,37 @@ namespace Analog
             }
         }
 
-        double updateCurrents(double dt, const char *comment)     // returns sum-of-squares of node current discrepancies
+        void debugState() const
         {
-            ++totalCurrentUpdates;
-
-            // Based on the voltage at each op-amp's input, calculate its output voltage.
-            // Apply low-pass filtering to simulate a finite slew rate.
-            // This is necessary to achieve convergence to a solution.
-            if (debug) printf("\nupdateCurrents(%s)\n", comment);
-            for (OpAmp& o : opAmpList)
+            if (debug)
             {
-                const Node& posNode = nodeList.at(o.posNodeIndex);
-                const Node& negNode = nodeList.at(o.negNodeIndex);
-                Node& outNode = nodeList.at(o.outNodeIndex);
-
-                // Calculate the instantaneous output voltage.
-                // That is, the voltage the op-amp *would* present if its
-                // slew rate were infinite.
-                double vfast = opAmpOpenLoopGain * (posNode.voltage[0] - negNode.voltage[0]);
-                if (vfast < VNEG)
-                    vfast = VNEG;
-                else if (vfast > VPOS)
-                    vfast = VPOS;
-
-                // Feed the rapid changes of output voltage through a low-pass slew filter.
-                o.voltage[0] = (opAmpFilterCoeff * o.voltage[1]) + ((1-opAmpFilterCoeff) * vfast);
-
-                // Copy the filtered voltage into the forced-voltage output node.
-                outNode.voltage[0] = o.voltage[0];
-
-                if (debug)
+                printf("\n");
+                int nn = nodeList.size();
+                for (int i = 0; i < nn; ++i)
                 {
-                    printf("   opamp: POS[%d] = %lg V, NEG[%d] = %lg V, OUT[%d] = %lg V\n",
-                        o.posNodeIndex, posNode.voltage[0],
-                        o.negNodeIndex, negNode.voltage[0],
-                        o.outNodeIndex, outNode.voltage[0]
+                    const Node& n = nodeList[i];
+                    printf("%c%c node[%d] voltage=%lg, current=%lg\n",
+                        n.forcedVoltage ? 'F' : ' ',
+                        n.currentSink ? 'S' : ' ',
+                        i,
+                        n.voltage[0],
+                        n.current
                     );
                 }
             }
+        }
+
+        double updateCurrents(double dt)     // returns root-mean-square (RMS) current error in nanoamps (nA)
+        {
+            ++totalCurrentUpdates;
+
+            // No need to do anything here for linearAmpList.
+            // All linear amp inputs are virtual grounds.
+            // Their outputs are current sinks with unknown voltages to be solved.
+
+            // No need to do anything here for comparatorList.
+            // For stability, their binary output voltages are only updated once the solver
+            // stabilizes this sample's solution.
 
             // Add up currents flowing into each node.
 
@@ -272,248 +268,121 @@ namespace Analog
                 n2.current += c.current[0];
             }
 
-            // Fixed voltage nodes must source/sink any amount of current discrepancy.
-            // For example, a ground node must allow any excess current to flow into it.
-            // An op-amp output must do the same.
-            // This relieves pressure on the solver to focus on adjusting voltages
-            // only on the nodes for which it is *possible* to adjust voltages,
-            // i.e. the unforced nodes.
-
-            // Store the sourced current coming out of op-amp outputs.
-            for (OpAmp& o : opAmpList)
-            {
-                const Node &n = nodeList.at(o.outNodeIndex);
-                o.current = -n.current;
-                // Node current will be zeroed out below. No need to do it here also.
-            }
-
-            if (debug)
-            {
-                printf("\n");
-                int nn = nodeList.size();
-                for (int i = 0; i < nn; ++i)
-                {
-                    const Node& n = nodeList[i];
-                    if (!n.forced)
-                        printf("   node[%d] voltage=%lg, current=%lg\n", i, n.voltage[0], n.current);
-                }
-                for (int i = 0; i < nn; ++i)
-                {
-                    const Node& n = nodeList[i];
-                    if (n.forced)
-                        printf("F  node[%d] voltage=%lg, current=%lg\n", i, n.voltage[0], n.current);
-                }
-            }
+            // Return the simulation error = sum of squared node currents.
+            // Special case: current-sink nodes (ground, amplifier outputs, and forced voltages)
+            // act like a single node, but with different voltages. The sum of all their
+            // currents must collectively add to zero, in order to preserve the total amount
+            // of electric charge in the circuit.
 
             double score = 0;
-            for (Node& n : nodeList)
-                if (n.forced)
-                    n.current = 0;      // Nodes with forced voltages must source/sink arbitrary current.
+            double sink = 0;
+            for (const Node& n : nodeList)
+                if (n.currentSink)
+                    sink += n.current;
                 else
-                    score += n.current * n.current;     // sum of squared currents = simulation error
+                    score += n.current * n.current;
 
-            return score;
+            score += sink * sink;
+            double rms = 1.0e+9 * std::sqrt(score);     // root-mean-square error in nanoamps [nA]
+            return rms;
         }
 
-        double adjustNodeVoltages(double dt)
+        double adjustNodeVoltages(double dt, bool& halt)
         {
+            halt = false;
             ++totalAdjustNodeVoltagesCount;
 
-            // Measure the simulation error before changing any unforced node voltages.
-            double score1 = updateCurrents(dt, "before voltage adjust");
-            if (debug) printf("\nadjustNodeVoltages: sqrt(score1) = %lg\n", std::sqrt(score1));
+            // Get the baseline score, before changing any voltages.
+            double score0 = updateCurrents(dt);
 
-            // If the score is good enough, consider the update successful.
-            if (score1 < scoreTolerance*scoreTolerance)
+            // Before doing anything to the current node voltages, save them all.
+            // That way we can "rewind" back to the original values as needed.
+            for (Node& n : nodeList)
+                n.savedVoltage = n.voltage[0];
+
+            // The search space is the vector of all unforced node voltages.
+            // Search along each orthogonal axis, one at a time.
+            // Find a rough nearby minimum along each axis, and only
+            // commit to a change if it decreases the score.
+
+            double bestScore = score0;
+            for (Node& n : nodeList)
             {
-                // Indicate success and report the score.
-                // Take the square root of the sum-of-squares to report
-                // an RMS current error value. It is easier to interpret
-                // the result when expressed in amps, rather than amps^2.
-                return std::sqrt(score1);
-            }
-
-            Node *fallbackNode = nullptr;
-            double fallbackScore = score1;
-            double fallbackAdjust = 0.0;
-
-            // Calculate partial derivatives of how much each node's voltage
-            // affects the simulation error.
-            // At the same time, look for a fallback gradient along a single axis,
-            // in case the all-axis gradient fails.
-            double magnitude = 0.0;
-            for (Node &n : nodeList)
-            {
-                if (!n.forced)
+                if (!n.forcedVoltage)
                 {
-                    n.savedVoltage = n.voltage[0];
+                    double bestVoltage = n.savedVoltage;
 
-                    // We are looking for dE/dV, where E = error and V = voltage.
-                    // Tweak the voltage a tiny amount on this node.
-                    // To get better partial derivatives, we do the extra work
-                    // of increasing and decreasing the voltage, evaluating the currents
-                    // at both, and drawing a secant line that approximates the tangent line.
-                    n.voltage[0] += deltaVoltage;
-                    double score2p = updateCurrents(dt, "partial derivative +");
+                    // Does increasing the voltage make the score better (smaller)?
+                    n.voltage[0] = n.savedVoltage + deltaVoltage;
+                    double pscore = updateCurrents(dt);
 
-                    if (score2p < fallbackScore)
-                    {
-                        fallbackNode = &n;
-                        fallbackScore = score2p;
-                        fallbackAdjust = +deltaVoltage;
-                    }
-
+                    // Does decreasing the voltage make the score better (smaller)?
                     n.voltage[0] = n.savedVoltage - deltaVoltage;
-                    double score2n = updateCurrents(dt, "partial derivative -");
+                    double nscore = updateCurrents(dt);
 
-                    if (score2n < fallbackScore)
+                    double voltageStep;
+                    if (pscore < score0 && pscore < nscore)
                     {
-                        fallbackNode = &n;
-                        fallbackScore = score2n;
-                        fallbackAdjust = -deltaVoltage;
+                        // Increasing the voltage is an improvement, and better than decreasing it.
+                        bestScore = pscore;
+                        bestVoltage = n.savedVoltage + deltaVoltage;
+                        voltageStep = +deltaVoltage;
                     }
-
-                    // Store this slope in each unforced node.
-                    // We will use them later to update all node voltages to get
-                    // closer to the desired solution.
-                    n.slope = score2p - score2n;
-
-                    // Accumulate the magnitude of the gradient vector so we can normalize it later.
-                    magnitude += n.slope * n.slope;
-
-                    // Restore the original voltage.
-                    n.voltage[0] = n.savedVoltage;
-
-                    if (debug) printf("\nadjustNodeVoltages: sqrt(score2p) = %lg, sqrt(score2n) = %lg, slope = %lg\n", std::sqrt(score2p), std::sqrt(score2n), n.slope);
-                }
-            }
-
-            if (magnitude == 0.0)
-                throw std::logic_error("Solver cannot make progress because gradient vector is zero.");
-
-            // Calculate the derivative of changing the entire system state in
-            // the direction indicated by the hypervector that points downhill
-            // toward the steepest direction of decreased system error.
-            // Normalize the vector such that its magnitude is still deltaVoltage.
-            magnitude = std::sqrt(magnitude);
-            if (debug) printf("magnitude = %lg\n", magnitude);
-
-            for (Node& n : nodeList)
-            {
-                if (!n.forced)
-                {
-                    n.savedVoltage = n.voltage[0];
-                    n.slope *= -deltaVoltage / magnitude;  // negative to go "downhill" : gradient descent
-                    n.voltage[0] += n.slope;
-                }
-            }
-
-            double score3 = updateCurrents(dt, "after voltage micro-adjustment");
-            if (debug) printf("\nadjustNodeVoltages: sqrt(score3) = %lg\n", std::sqrt(score3));
-
-            // We should never lose ground. Otherwise we risk not converging.
-            if (score3 >= score1)
-            {
-                if (fallbackNode == nullptr)
-                {
-                    // Try as we might, we can't find a way to go downhill from here!
-                    // Let's consider this successful finding of a local minimum.
-                    // Revert the changes to the unforced node voltages.
-                    for (Node& n : nodeList)
-                        if (!n.forced)
-                            n.voltage[0] = n.savedVoltage;
-
-                    return std::sqrt(score1);
-                }
-
-                // See if we can fall back to a single-axis change that improves the score.
-                if (debug) printf("using fallback\n");
-
-                // Reset all node voltages.
-                for (Node& n : nodeList)
-                {
-                    if (!n.forced)
+                    else if (nscore < score0 && nscore < pscore)
                     {
+                        // Decreasing the voltage is an improvement, and better than increasing it.
+                        bestScore = nscore;
+                        bestVoltage = n.savedVoltage - deltaVoltage;
+                        voltageStep = -deltaVoltage;
+                    }
+                    else
+                    {
+                        // Don't waste any time trying to improve the score along this axis.
+                        // Restore the voltage and skip this axis.
                         n.voltage[0] = n.savedVoltage;
-                        n.slope = 0.0;
+                        continue;
                     }
-                }
 
-                // Prepare to step in the new direction, along this single axis.
-                fallbackNode->slope = fallbackAdjust;
-            }
+                    // We found an improvement in the deltaVoltage direction.
+                    // Keep going in that direction by an exponentially increasing step
+                    // until we stop finding better scores.
+                    int backtrackCount = 0;
+                    while (backtrackCount < 3)
+                    {
+                        n.voltage[0] = bestVoltage + voltageStep;
+                        double score1 = updateCurrents(dt);
+                        if (score1 < bestScore)
+                        {
+                            bestScore = score1;
+                            bestVoltage = n.voltage[0];
+                            voltageStep *= stepDilation;        // accelerate the search
+                        }
+                        else
+                        {
+                            // Decelerate the search
+                            voltageStep /= stepContraction;
+                            ++backtrackCount;
+                        }
+                    }
 
-            // We have just micro-stepped by `deltaVoltage` along the descending gradient,
-            // and `score3` is confirmed to be an improvement at that micro-step.
-            // Perform a "line search" along that direction, to find a rough minimum along it:
-            // https://en.wikipedia.org/wiki/Line_search
-            // Look farther away than deltaVoltage and keep going until we find a score
-            // that is no longer better than score1.
-            // Then we have a bracket in which we can search for a score near the minimum.
+                    // Commit the improved voltage.
+                    n.voltage[0] = bestVoltage;
 
-            char comment[100];
-            comment[0] = '\0';      // in case debugging is disabled
-
-            const double dilation = 2.0;
-            double bestAlpha = 1.0;
-            double bestScore = score3;
-            double lineScore = -1.0;        // make sure we enter the `for` loop at least one time
-            for (double alpha = dilation; lineScore < score1; alpha *= dilation)
-            {
-                voltageStep(alpha);
-
-                if (debug) snprintf(comment, sizeof(comment), "upper bracket alpha = %lg", alpha);
-                lineScore = updateCurrents(dt, comment);
-                if (debug) printf("upper bracket score = %lg\n", lineScore);
-                if (lineScore < bestScore)
-                {
-                    bestScore = lineScore;
-                    bestAlpha = alpha;
+                    // Move to the next orthogonal axis, if any remain.
                 }
             }
 
-            // Perform an iterative search over the open range (bestAlpha/dilation, bestAlpha*dilation)
-            // for the best alpha and score we can find.
-
-            const int nsteps = 9;
-            double loAlpha = bestAlpha / dilation;
-            double hiAlpha = bestAlpha * dilation;
-            for (int step = 1; step < nsteps; ++step)   // iterate through interior points
-            {
-                double alpha = loAlpha + (step * (hiAlpha - loAlpha))/nsteps;
-                voltageStep(alpha);
-                if (debug) snprintf(comment, sizeof(comment), "linear step alpha = %lg", alpha);
-                lineScore = updateCurrents(dt, comment);
-                if (debug) printf("linear step score = %lg\n", lineScore);
-                if (lineScore < bestScore)
-                {
-                    bestScore = lineScore;
-                    bestAlpha = alpha;
-                }
-            }
-
-            if (debug) printf("line search bestAlpha=%lg, bestScore=%lg, improvement=%lg\n", bestAlpha, bestScore, score1-bestScore);
-
-            // Step to the best distance we found.
-            voltageStep(bestAlpha);
-
-            return -1.0;    // indicate the search is incomplete: we made progress, but not good enough yet
+            halt = (bestScore == score0);       // halt if we could not make any improvement
+            return bestScore;
         }
 
-        void voltageStep(double step)
-        {
-            for (Node& n : nodeList)
-                if (!n.forced)
-                    n.voltage[0] = n.savedVoltage + (step * n.slope);
-        }
-
-        void confirmLocked()
+        void confirmLocked() const
         {
             if (!isLocked)
                 throw std::logic_error("You must lock the circuit before accessing references to nodes or components.");
         }
 
-        void confirmUnlocked()
+        void confirmUnlocked() const
         {
             if (isLocked)
                 throw std::logic_error("Once the circuit is locked, you cannot add new nodes or components.");
@@ -522,7 +391,6 @@ namespace Analog
         SolutionResult simulationStep(double simSampleRateHz)
         {
             const double dt = 1.0 / simSampleRateHz;
-            double score;
 
             // Shift voltage history by one sample.
             // This is needed to calculate capacitor currents, which are based on
@@ -538,26 +406,60 @@ namespace Analog
             for (Capacitor& c : capacitorList)
                 c.current[1] = c.current[0];
 
-            // Update output voltages on the op-amps to reflect their new low-pass filtered state.
-            for (OpAmp& o : opAmpList)
-                o.voltage[1] = o.voltage[0];
-
             extrapolateUnforcedNodeVoltages();
 
             long currentUpdatesBefore = totalCurrentUpdates;
 
             for (int count = 1; count <= retryLimit; ++count)
             {
-                if (debug) printf("simulationStep: count = %d\n", count);
-                score = adjustNodeVoltages(dt);
-                if (score >= 0.0)
-                    return SolutionResult(count, totalCurrentUpdates - currentUpdatesBefore, score);
+                bool halt;
+                double rmsCurrentError = adjustNodeVoltages(dt, halt);
+                if (debug)
+                {
+                    printf("simulationStep(%d): rms=%lg\n", count, rmsCurrentError);
+                    debugState();
+                }
+                if (halt || rmsCurrentError < rmsCurrentErrorToleranceNanoAmps)
+                    return SolutionResult(count, totalCurrentUpdates - currentUpdatesBefore, rmsCurrentError);
             }
 
-            //throw std::logic_error(std::string("Circuit solver failed to converge at sample " + std::to_string(totalSamples)));
-            // Just assume we have gotten as good a solution as is possible.
-            score = updateCurrents(dt, "exhausted retry limit");
-            return SolutionResult(retryLimit, totalCurrentUpdates - currentUpdatesBefore, std::sqrt(score));
+            throw std::logic_error(std::string("Circuit solver failed to converge at sample " + std::to_string(totalSamples)));
+        }
+
+        void allocateUnforcedCurrentSinkNode(int nodeIndex)
+        {
+            Node& node = nodeList.at(nodeIndex);
+            if (node.forcedVoltage)
+                throw std::logic_error("allocateUnforcedCurrentSinkNode: Node voltage was already forced.");
+            if (node.currentSink)
+                throw std::logic_error("allocateUnforcedCurrentSinkNode: Node was already defined as a current sink.");
+            node.currentSink = true;
+        }
+
+        void allocateVirtualGroundNode(int nodeIndex)
+        {
+            Node& node = nodeList.at(nodeIndex);
+            if (node.forcedVoltage)
+                throw std::logic_error("allocateVirtualGroundNode: Node voltage was already forced.");
+            if (node.currentSink)
+                throw std::logic_error("allocateVirtualGroundNode: Node was already defined as a current sink.");
+            node.forcedVoltage = true;
+            node.voltage[0] = node.voltage[1] = 0;
+        }
+
+        void updateComparatorOutputs()
+        {
+            // For simulation stability, allow comparator outputs to change between
+            // node voltage solver steps only. This is essentially a 1-sample
+            // slew rate for each comparator. This way, comparator outputs cannot toggle
+            // back and forth while we are trying to solve the circuit.
+            for (Comparator& k : comparatorList)
+            {
+                // Each comparator saturates its output voltage based on the negative input voltage.
+                const Node& neg = nodeList.at(k.negNodeIndex);
+                Node& out = nodeList.at(k.outNodeIndex);
+                out.voltage[0] = (neg.voltage[0] < 0) ? COMPARATOR_HI_VOLTAGE : COMPARATOR_LO_VOLTAGE;
+            }
         }
 
     public:
@@ -565,12 +467,12 @@ namespace Analog
         const double VNEG = -12;       // negative supply voltage fed to all op-amps
 
         bool debug = false;
-        double scoreTolerance = 1.0e-8;     // amps : adjust as necessary for a given circuit, to balance accuracy with convergence
-        double deltaVoltage = 1.0e-9;       // step size to try each axis (node) in the search space
+        double rmsCurrentErrorToleranceNanoAmps = 1.0;  // adjust as necessary for a given circuit, to balance accuracy with convergence
+        double deltaVoltage = 1.0e-9;                   // minimum step size to try each axis (node) in the search space
         int minInternalSamplingRate = 40000;            // we oversample as needed to reach this minimum sampling rate for the circuit solver
-        double opAmpSlewRateHalfLifeSeconds = 0.0;      // when positive, enables low-pass filter on op-amp outputs to make the solver converge easily
-        double opAmpOpenLoopGain = 1.0e+6;
         int retryLimit = 100;
+        double stepDilation = 1.1;         // exponential acceleration rate for orthogonal search algorithm
+        double stepContraction = 2.0;      // exponential deceleration rate for orthogonal search algorithm
 
         void lock()
         {
@@ -586,6 +488,7 @@ namespace Analog
         void initialize()
         {
             totalAdjustNodeVoltagesCount = 0;
+            totalCurrentUpdates = 0;
             totalSamples = 0;
             simulationTime = 0.0;
 
@@ -595,8 +498,11 @@ namespace Analog
             for (Capacitor& c : capacitorList)
                 c.initialize();
 
-            for (OpAmp& o : opAmpList)
-                o.initialize();
+            for (LinearAmp& a : linearAmpList)
+                a.initialize();
+
+            for (Comparator& k : comparatorList)
+                k.initialize();
 
             for (Node& n : nodeList)
                 n.initialize();
@@ -613,9 +519,12 @@ namespace Analog
         void allocateForcedVoltageNode(int nodeIndex)
         {
             Node& node = nodeList.at(nodeIndex);
-            if (node.forced)
-                throw std::logic_error("Node voltage was already forced.");
-            node.forced = true;
+            if (node.forcedVoltage)
+                throw std::logic_error("allocateForcedVoltageNode: Node voltage was already forced.");
+            if (node.currentSink)
+                throw std::logic_error("allocateForcedVoltageNode: Node was already defined as a current sink.");
+            node.forcedVoltage = true;
+            node.currentSink = true;
         }
 
         int createForcedVoltageNode(double voltage)
@@ -651,42 +560,79 @@ namespace Analog
             return capacitorList.size() - 1;
         }
 
-        int addOpAmp(int posNodeIndex, int negNodeIndex, int outNodeIndex)
+        int addLinearAmp(int negNodeIndex, int outNodeIndex)
         {
             confirmUnlocked();
-            v(posNodeIndex);
             v(negNodeIndex);
-
-            OpAmp newOpAmp(posNodeIndex, negNodeIndex, outNodeIndex);
+            v(outNodeIndex);
 
             // We always calculate op-amp output voltages in the order
             // the op-amps were added to the circuit. Prevent incorrect
             // calculation order by preventing an op-amp from being added
-            // to the circuit if its output feeds into either of an existing
-            // op-amp's inputs.
-            const int n = opAmpList.size();
-            for (int i = 0; i < n; ++i)
-            {
-                const OpAmp& o = opAmpList[i];
-                if (o.negNodeIndex == outNodeIndex || o.posNodeIndex == outNodeIndex)
-                {
-                    using namespace std;
-                    string message = newOpAmp.to_string();
-                    message += " would calculate after op-amp ";
-                    message += o.to_string();
-                    message += ", causing incorrect voltage to be received by the second op-amp.";
-                    throw std::logic_error(message);
-                }
-            }
+            // to the circuit if its output feeds into the input of another
+            // active device that already was added before this one.
+            const Node& outNode = nodeList.at(outNodeIndex);
+            if (outNode.isActiveDeviceInput)
+                throw std::logic_error("Linear amplifier output is not allowed to connect directly to an earlier active device's input.");
+
+            // As a hack, do not allow adding any linear amps once any comparators have been added.
+            // This is because we actually calculate all linear amps first, then all comparators.
+            if (comparatorList.size() != 0)
+                throw std::logic_error("Cannot add a linear amplifier after any comparators have been added.");
+
+            // The linear amp is a little weird. Its output does NOT have a forced voltage.
+            // Instead, the output is a current sink only. The voltage is an unknown to be
+            // solved, such that the negative input remains a virtual ground.
+            allocateUnforcedCurrentSinkNode(outNodeIndex);
+
+            // The negative input is a virtual ground.
+            // That means its node voltage is always zero, but the input
+            // itself has infinite impedance, and therefore has no effect on node current.
+            allocateVirtualGroundNode(negNodeIndex);
+
+            // Prevent any other amplifier to be chained directly and out of calculation order.
+            Node& negNode = nodeList.at(negNodeIndex);
+            negNode.isActiveDeviceInput = true;
+
+            linearAmpList.push_back(LinearAmp(negNodeIndex, outNodeIndex));
+            return linearAmpList.size() - 1;
+        }
+
+        int addComparator(int negNodeIndex, int outNodeIndex)
+        {
+            confirmUnlocked();
+            v(negNodeIndex);
+            v(outNodeIndex);
+
+            // We always calculate op-amp output voltages in the order
+            // the op-amps were added to the circuit. Prevent incorrect
+            // calculation order by preventing an op-amp from being added
+            // to the circuit if its output feeds into the input of another
+            // active device that already was added before this one.
+            const Node& outNode = nodeList.at(outNodeIndex);
+            if (outNode.isActiveDeviceInput)
+                throw std::logic_error("Comparator output is not allowed to connect directly to an earlier active device's input.");
 
             allocateForcedVoltageNode(outNodeIndex);
-            opAmpList.push_back(newOpAmp);
-            return opAmpList.size() - 1;
+
+            Node& negNode = nodeList.at(negNodeIndex);
+
+            // Prevent any other amplifier to be chained directly and out of calculation order.
+            negNode.isActiveDeviceInput = true;
+
+            comparatorList.push_back(Comparator(negNodeIndex, outNodeIndex));
+            return comparatorList.size() - 1;
         }
 
         int getNodeCount() const
         {
             return nodeList.size();
+        }
+
+        const Node& getNode(int nodeIndex) const
+        {
+            confirmLocked();
+            return nodeList.at(nodeIndex);
         }
 
         double getNodeVoltage(int nodeIndex) const
@@ -711,6 +657,12 @@ namespace Analog
             return resistorList.at(index);
         }
 
+        const Resistor& resistor(int index) const
+        {
+            confirmLocked();
+            return resistorList.at(index);
+        }
+
         int getCapacitorCount() const
         {
             return capacitorList.size();
@@ -722,15 +674,42 @@ namespace Analog
             return capacitorList.at(index);
         }
 
-        int getOpAmpCount() const
-        {
-            return opAmpList.size();
-        }
-
-        OpAmp& opAmp(int index)
+        const Capacitor& capacitor(int index) const
         {
             confirmLocked();
-            return opAmpList.at(index);
+            return capacitorList.at(index);
+        }
+
+        int getLinearAmpCount() const
+        {
+            return linearAmpList.size();
+        }
+
+        LinearAmp& linearAmp(int index)
+        {
+            confirmLocked();
+            return linearAmpList.at(index);
+        }
+
+        const LinearAmp& linearAmp(int index) const
+        {
+            confirmLocked();
+            return linearAmpList.at(index);
+        }
+
+        int getComparatorCount() const
+        {
+            return comparatorList.size();
+        }
+
+        Comparator& comparator(int index)
+        {
+            return comparatorList.at(index);
+        }
+
+        const Comparator& comparator(int index) const
+        {
+            return comparatorList.at(index);
         }
 
         SolutionResult update(double audioSampleRateHz)
@@ -747,31 +726,18 @@ namespace Analog
             const int factor = std::max(1, static_cast<int>(std::ceil(realFactor)));
             const double simSamplingRateHz = factor * audioSampleRateHz;
 
-            if (!opAmpList.empty() && (opAmpSlewRateHalfLifeSeconds > 0.0))
-            {
-                double prev = opAmpFilterCoeff;
-
-                // Calculate the lowpass filter coefficient necessary to achieve
-                // the desired half-life slew response from op-amps.
-                opAmpFilterCoeff = std::pow(0.5, 1.0 / (simSamplingRateHz * opAmpSlewRateHalfLifeSeconds));
-
-                if (debug && (prev != opAmpFilterCoeff))
-                    printf("\nupdate: opAmpFilterCoeff = %0.16lf\n", opAmpFilterCoeff);
-            }
-            else
-            {
-                // There are no op-amps, or we want to completely disable low-pass filtering.
-                opAmpFilterCoeff = 0.0;
-            }
+            updateComparatorOutputs();
 
             SolutionResult result(0, 0, -1.0);
             for (int step = 0; step < factor; ++step)
             {
                 if (debug) printf("\nupdate: audio sample %ld, step %d\n", totalSamples, step);
                 SolutionResult stepResult = simulationStep(simSamplingRateHz);
+                updateComparatorOutputs();
                 result.adjustNodeVoltagesCount += stepResult.adjustNodeVoltagesCount;
                 result.currentUpdates += stepResult.currentUpdates;
-                result.score = stepResult.score;
+                result.rmsCurrentError = stepResult.rmsCurrentError;
+                debugState();
             }
 
             ++totalSamples;

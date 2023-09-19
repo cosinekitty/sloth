@@ -57,6 +57,7 @@ real_t v(real_t x, const char *fn, int lnum)
 #define V(x)    v(x, __FILE__, __LINE__)
 #define ABS(x)  std::abs(v(x, __FILE__, __LINE__))
 
+static void Print(const Analog::Circuit& circuit);
 static int UnitTest_ResistorFeedback();
 static int UnitTest_VoltageDivider();
 static int UnitTest_ResistorCapacitorTimeConstant();
@@ -85,7 +86,7 @@ static int CheckSolution(
     const char *name,
     int outNodeIndex,
     double vOutExpected,
-    double tolerance = 1.0e-4)
+    double voltageTolerance = 3.3e-6)
 {
     Analog::SolutionResult result(0, 0, 0.0);
 
@@ -94,12 +95,12 @@ static int CheckSolution(
 
     double vOut = V(circuit.getNodeVoltage(outNodeIndex));
     double diff = ABS(vOut - vOutExpected);
-    printf("CheckSolution(%s): %d node voltage updates, %d current updates, score = %lg amps, diff = %lg V on node %d\n",
-        name, result.adjustNodeVoltagesCount, result.currentUpdates, result.score, diff, outNodeIndex);
+    printf("CheckSolution(%s): %d node voltage updates, %d current updates, rms = %lg amps, diff = %lg V on node %d\n",
+        name, result.adjustNodeVoltagesCount, result.currentUpdates, result.rmsCurrentError, diff, outNodeIndex);
 
-    if (diff > tolerance)
+    if (diff > voltageTolerance)
     {
-        printf("FAIL(%s): EXCESSIVE voltage error %f on node %d.\n", name, diff, outNodeIndex);
+        printf("FAIL(%s): EXCESSIVE voltage error %lg on node %d.\n", name, diff, outNodeIndex);
         return 1;
     }
     return 0;
@@ -115,14 +116,12 @@ static int UnitTest_ResistorFeedback()
     Circuit circuit;
 
     circuit.debug = false;
-    circuit.opAmpSlewRateHalfLifeSeconds = 0.02;
 
     int n0 = circuit.createNode();
     int n1 = circuit.createNode();
     int n2 = circuit.createNode();
-    int ng = circuit.createGroundNode();
 
-    if (circuit.getNodeCount() != 4)
+    if (circuit.getNodeCount() != 3)
     {
         printf("FAIL(ResistorFeedback): Incorrect node count = %d\n", circuit.getNodeCount());
         return 1;
@@ -131,19 +130,18 @@ static int UnitTest_ResistorFeedback()
     circuit.allocateForcedVoltageNode(n0);
     circuit.addResistor(1000.0f, n0, n1);
     circuit.addResistor(10000.0f, n1, n2);
-    circuit.addOpAmp(ng, n1, n2);
+    circuit.addLinearAmp(n1, n2);
     circuit.lock();
 
     double& vIn = circuit.nodeVoltage(n0);
     vIn = 1.0;
-    double vExact = -1.0e+7 / 1000011.0;    // manually derived exact solution
-    if (CheckSolution(circuit, 2*SAMPLE_RATE, "ResistorFeedback1", n2, vExact)) return 1;
+    if (CheckSolution(circuit, 1, "ResistorFeedback1", n2, -10.0 * vIn)) return 1;
 
     vIn = 2.0;
-    if (CheckSolution(circuit, 2*SAMPLE_RATE, "ResistorFeedback2", n2, circuit.VNEG)) return 1;
+    if (CheckSolution(circuit, 1, "ResistorFeedback2", n2, -10.0 * vIn)) return 1;
 
     vIn = -2.0;
-    if (CheckSolution(circuit, 2*SAMPLE_RATE, "ResistorFeedback3", n2, circuit.VPOS)) return 1;
+    if (CheckSolution(circuit, 1, "ResistorFeedback3", n2, -10.0 * vIn)) return 1;
 
     printf("ResistorFeedback: PASS\n");
     return 0;
@@ -189,7 +187,7 @@ static int UnitTest_VoltageDivider()
 
     const double i1 = i0 / 2.0;     // half the current goes through the parallel resistor
     diff = ABS(r1.current - i1);
-    if (diff > 1.0e-8)
+    if (diff > 6.0e-10)
     {
         printf("FAIL(VoltageDivider): EXCESSIVE r1.current error = %lg\n", diff);
         return 1;
@@ -219,7 +217,6 @@ static int UnitTest_ResistorCapacitorTimeConstant()
     const double supplyVoltage = 1.0;
 
     Circuit circuit;
-    circuit.scoreTolerance = 5.0e-11;
     int n0 = circuit.createForcedVoltageNode(supplyVoltage);
     int n1 = circuit.createNode();
     int n2 = circuit.createGroundNode();
@@ -243,7 +240,7 @@ static int UnitTest_ResistorCapacitorTimeConstant()
     int maxAdjustNodeVoltagesCount = 0;
     long totalAdjustNodeVoltagesCount = 0;
     long totalCurrentUpdates = 0;
-    double score = 0.0;
+    double rms = 0.0;
     double maxdiff = 0.0;
     for (int sample = 0; sample < nsamples; ++sample)
     {
@@ -260,7 +257,7 @@ static int UnitTest_ResistorCapacitorTimeConstant()
         if (sample % (SAMPLE_RATE / 100) == 0)
         {
             fprintf(outfile, "%d,%0.2lf,%d,%lg,%0.16lg,%0.16lg,%0.16lg\n",
-                sample, time, adjustNodeVoltagesCount, score, voltage, expected, diff);
+                sample, time, adjustNodeVoltagesCount, rms, voltage, expected, diff);
 
             fflush(outfile);
         }
@@ -270,7 +267,7 @@ static int UnitTest_ResistorCapacitorTimeConstant()
         maxAdjustNodeVoltagesCount = std::max(maxAdjustNodeVoltagesCount, adjustNodeVoltagesCount);
         totalAdjustNodeVoltagesCount += adjustNodeVoltagesCount;
         totalCurrentUpdates += result.currentUpdates;
-        score = result.score;
+        rms = result.rmsCurrentError;
     }
 
     fclose(outfile);
@@ -294,14 +291,15 @@ static int UnitTest_ResistorCapacitorTimeConstant()
         return 1;
     }
 
-    if (maxdiff > 3.31e-5)
+    if (maxdiff > 1.8e-5)
     {
         printf("ResistorCapacitorTimeConstant: FAIL - excessive capacitor voltage error = %0.6lg\n", maxdiff);
         return 1;
     }
 
     double meanIterations = static_cast<double>(totalAdjustNodeVoltagesCount) / nsamples;
-    printf("ResistorCapacitorTimeConstant: PASS (mean iterations = %0.3lf, max = %d, capacitor voltage error = %lg)\n", meanIterations, maxAdjustNodeVoltagesCount, maxdiff);
+    printf("ResistorCapacitorTimeConstant: PASS (mean iterations = %0.3lf, max = %d, mean current updates = %lg, capacitor voltage error = %lg)\n",
+        meanIterations, maxAdjustNodeVoltagesCount, stats.meanCurrentUpdatesPerSample(), maxdiff);
     return 0;
 }
 
@@ -313,10 +311,9 @@ static int UnitTest_Torpor()
     printf("Torpor: starting\n");
 
     TorporSlothCircuit circuit;
+    Print(circuit);
 
     circuit.debug = false;
-    circuit.deltaVoltage = 1.0e-9;
-    circuit.retryLimit = 100;
     circuit.setControlVoltage(-1.3);
     circuit.setKnobPosition(0.25);
 
@@ -324,7 +321,7 @@ static int UnitTest_Torpor()
     long totalCurrentUpdates = 0;
 
     double startTime = TimeInSeconds();
-    const int nseconds = 10;
+    const int nseconds = 120;
     const int nsamples = nseconds * SAMPLE_RATE;
     for (int sample = 0; sample < nsamples; ++sample)
     {
@@ -337,29 +334,29 @@ static int UnitTest_Torpor()
 
         if (sample % SAMPLE_RATE == 0)
         {
-            printf("Torpor: sample=%d, adjustNodeVoltagesCount=%d, currentUpdates=%d, score=%lg, x=%0.6lf, y=%0.6lf, z=%0.6lf\n",
+            printf("Torpor: sample=%d, adjustNodeVoltagesCount=%d, currentUpdates=%d, rms=%lg, x=%0.6lf, y=%0.6lf, z=%0.6lf\n",
                 sample,
                 result.adjustNodeVoltagesCount,
                 result.currentUpdates,
-                result.score,
+                result.rmsCurrentError,
                 vx, vy, vz);
         }
 
         if (vx < circuit.VNEG || vx > circuit.VPOS)
         {
-            printf("Torpor: output voltage X is out of bounds!\n");
+            printf("Torpor(%d): output voltage vx=%lg is out of bounds!\n", sample, vx);
             return 1;
         }
 
         if (vy < circuit.VNEG || vy > circuit.VPOS)
         {
-            printf("Torpor: output voltage Y is out of bounds!\n");
+            printf("Torpor(%d): output voltage vy=%lg is out of bounds!\n", sample, vy);
             return 1;
         }
 
         if (vz < circuit.VNEG || vz > circuit.VPOS)
         {
-            printf("Torpor: output voltage Z is out of bounds!\n");
+            printf("Torpor(%d): output voltage vz=%lg is out of bounds!\n", sample, vz);
             return 1;
         }
     }
@@ -392,4 +389,70 @@ static int UnitTest_Torpor()
         elapsedTime
     );
     return 0;
+}
+
+
+inline const char *BoolString(bool x)
+{
+    return x ? "true" : "false";
+}
+
+
+inline const char *Sep(int i, int n)
+{
+    return (i+1 < n) ? "," : "";
+}
+
+static void Print(const Analog::Circuit& circuit)
+{
+    using namespace Analog;
+
+    printf("{\n");
+
+    printf("    \"nodes\": [\n");
+    const int nn = circuit.getNodeCount();
+    for (int i = 0; i < nn; ++i)
+    {
+        const Node& n = circuit.getNode(i);
+        printf("        {\"forcedVoltage\":%s, \"currentSink\":%s}%s\n", BoolString(n.forcedVoltage), BoolString(n.currentSink), Sep(i, nn));
+    }
+    printf("    ],\n");
+
+    printf("    \"resistors\": [\n");
+    const int nr = circuit.getResistorCount();
+    for (int i = 0; i < nr; ++i)
+    {
+        const Resistor& r = circuit.resistor(i);
+        printf("        {\"resistance\": %0.16lg, \"nodes\":[%d, %d]}%s\n", r.resistance, r.aNodeIndex, r.bNodeIndex, Sep(i, nr));
+    }
+    printf("    ],\n");
+
+    printf("    \"capacitors\": [\n");
+    const int nc = circuit.getCapacitorCount();
+    for (int i = 0; i < nc; ++i)
+    {
+        const Capacitor& c = circuit.capacitor(i);
+        printf("        {\"capacitance\": %0.16lg, \"nodes\":[%d, %d]}%s\n", c.capacitance, c.aNodeIndex, c.bNodeIndex, Sep(i, nc));
+    }
+    printf("    ],\n");
+
+    printf("    \"linearAmps\": [\n");
+    const int na = circuit.getLinearAmpCount();
+    for (int i = 0; i < na; ++i)
+    {
+        const LinearAmp& a = circuit.linearAmp(i);
+        printf("        {\"nodes\": [%d, %d]}%s\n", a.negNodeIndex, a.outNodeIndex, Sep(i, na));
+    }
+    printf("    ],\n");
+
+    printf("    \"comparators\": [\n");
+    const int nk = circuit.getComparatorCount();
+    for (int i = 0; i < nk; ++i)
+    {
+        const Comparator& k = circuit.comparator(i);
+        printf("        {\"nodes\": [%d, %d]}%s\n", k.negNodeIndex, k.outNodeIndex, Sep(i, nk));
+    }
+    printf("    ]\n");
+
+    printf("}\n");
 }
