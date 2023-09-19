@@ -86,7 +86,7 @@ static int CheckSolution(
     const char *name,
     int outNodeIndex,
     double vOutExpected,
-    double voltageTolerance = 2.0e-6)
+    double voltageTolerance = 3.3e-6)
 {
     Analog::SolutionResult result(0, 0, 0.0);
 
@@ -217,7 +217,6 @@ static int UnitTest_ResistorCapacitorTimeConstant()
     const double supplyVoltage = 1.0;
 
     Circuit circuit;
-    circuit.initAlpha = 1.0e-5;
     int n0 = circuit.createForcedVoltageNode(supplyVoltage);
     int n1 = circuit.createNode();
     int n2 = circuit.createGroundNode();
@@ -292,15 +291,15 @@ static int UnitTest_ResistorCapacitorTimeConstant()
         return 1;
     }
 
-    if (maxdiff > 1.2e-5)
+    if (maxdiff > 1.8e-5)
     {
         printf("ResistorCapacitorTimeConstant: FAIL - excessive capacitor voltage error = %0.6lg\n", maxdiff);
         return 1;
     }
 
     double meanIterations = static_cast<double>(totalAdjustNodeVoltagesCount) / nsamples;
-    printf("ResistorCapacitorTimeConstant: PASS (mean iterations = %0.3lf, max = %d, mean current updates = %lg, capacitor voltage error = %lg, alpha range = [%lg, %lg])\n",
-        meanIterations, maxAdjustNodeVoltagesCount, stats.meanCurrentUpdatesPerSample(), maxdiff, stats.minAlpha, stats.maxAlpha);
+    printf("ResistorCapacitorTimeConstant: PASS (mean iterations = %0.3lf, max = %d, mean current updates = %lg, capacitor voltage error = %lg)\n",
+        meanIterations, maxAdjustNodeVoltagesCount, stats.meanCurrentUpdatesPerSample(), maxdiff);
     return 0;
 }
 

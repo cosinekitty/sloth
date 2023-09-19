@@ -146,16 +146,12 @@ namespace Analog
         long totalCurrentUpdates;
         long totalSamples;
         double simulationTimeInSeconds;
-        double minAlpha;
-        double maxAlpha;
 
-        PerformanceStats(long adjustNodeVoltagesCount, long currentUpdates, long samples, double simTime, double _minAlpha, double _maxAlpha)
+        PerformanceStats(long adjustNodeVoltagesCount, long currentUpdates, long samples, double simTime)
             : totalAdjustNodeVoltagesCount(adjustNodeVoltagesCount)
             , totalCurrentUpdates(currentUpdates)
             , totalSamples(samples)
             , simulationTimeInSeconds(simTime)
-            , minAlpha(_minAlpha)
-            , maxAlpha(_maxAlpha)
             {}
 
         double meanAdjustNodeVoltagesPerSample() const
@@ -183,8 +179,6 @@ namespace Analog
         long totalCurrentUpdates = 0;
         long totalSamples = 0;
         double simulationTime = 0.0;
-        double minAlpha = -1.0;     // sentinel value to indicate unknown
-        double maxAlpha = -1.0;     // sentinel value to indicate unknown
 
         int v(int nodeIndex) const
         {
@@ -227,7 +221,7 @@ namespace Analog
             }
         }
 
-        double updateCurrents(double dt)     // returns sum-of-squares of node current discrepancies
+        double updateCurrents(double dt)     // returns root-mean-square (RMS) current error in nanoamps (nA)
         {
             ++totalCurrentUpdates;
 
@@ -289,7 +283,8 @@ namespace Analog
                     score += n.current * n.current;
 
             score += sink * sink;
-            return score;
+            double rms = 1.0e+9 * std::sqrt(score);     // root-mean-square error in nanoamps [nA]
+            return rms;
         }
 
         double adjustNodeVoltages(double dt, bool& halt)
@@ -306,79 +301,79 @@ namespace Analog
                 n.savedVoltage = n.voltage[0];
 
             // The search space is the vector of all unforced node voltages.
-            // Calculate a vector in the direction of steepest descent.
-            // This is the negative of the gradient vector.
-            // Store the vector in the `slope` fields of the unforced voltage nodes.
-            // Approximate the gradient by a tiny change in voltage, up and down,
-            // for each unforced voltage node.
+            // Search along each orthogonal axis, one at a time.
+            // Find a rough nearby minimum along each axis, and only
+            // commit to a change if it decreases the score.
 
-            double magnitude = 0;
+            double bestScore = score0;
             for (Node& n : nodeList)
             {
                 if (!n.forcedVoltage)
                 {
-                    n.voltage[0] = n.savedVoltage - deltaVoltage;
-                    double nscore = updateCurrents(dt);
+                    double bestVoltage = n.savedVoltage;
 
+                    // Does increasing the voltage make the score better (smaller)?
                     n.voltage[0] = n.savedVoltage + deltaVoltage;
                     double pscore = updateCurrents(dt);
 
-                    n.voltage[0] = n.savedVoltage;
+                    // Does decreasing the voltage make the score better (smaller)?
+                    n.voltage[0] = n.savedVoltage - deltaVoltage;
+                    double nscore = updateCurrents(dt);
 
-                    n.slope = (nscore - pscore) / (2 * deltaVoltage);
-                    magnitude += n.slope * n.slope;
+                    double voltageStep;
+                    if (pscore < score0 && pscore < nscore)
+                    {
+                        // Increasing the voltage is an improvement, and better than decreasing it.
+                        bestScore = pscore;
+                        bestVoltage = n.savedVoltage + deltaVoltage;
+                        voltageStep = +deltaVoltage;
+                    }
+                    else if (nscore < score0 && nscore < pscore)
+                    {
+                        // Decreasing the voltage is an improvement, and better than increasing it.
+                        bestScore = nscore;
+                        bestVoltage = n.savedVoltage - deltaVoltage;
+                        voltageStep = -deltaVoltage;
+                    }
+                    else
+                    {
+                        // Don't waste any time trying to improve the score along this axis.
+                        // Restore the voltage and skip this axis.
+                        n.voltage[0] = n.savedVoltage;
+                        continue;
+                    }
+
+                    // We found an improvement in the deltaVoltage direction.
+                    // Keep going in that direction by an exponentially increasing step
+                    // until we stop finding better scores.
+                    int backtrackCount = 0;
+                    while (backtrackCount < 3)
+                    {
+                        n.voltage[0] = bestVoltage + voltageStep;
+                        double score1 = updateCurrents(dt);
+                        if (score1 < bestScore)
+                        {
+                            bestScore = score1;
+                            bestVoltage = n.voltage[0];
+                            voltageStep *= stepDilation;        // accelerate the search
+                        }
+                        else
+                        {
+                            // Decelerate the search
+                            voltageStep /= stepContraction;
+                            ++backtrackCount;
+                        }
+                    }
+
+                    // Commit the improved voltage.
+                    n.voltage[0] = bestVoltage;
+
+                    // Move to the next orthogonal axis, if any remain.
                 }
             }
 
-            if (magnitude == 0.0)
-            {
-                // We have hit an absolutely flat location on the score space.
-                // We cannot make any progress, so quit.
-                halt = true;
-                return std::sqrt(score0);
-            }
-
-            magnitude = std::sqrt(magnitude);
-            for (Node& n : nodeList)
-                if (!n.forcedVoltage)
-                    n.slope /= magnitude;       // convert to dimensionless unit vector
-
-            // Now that we have the unit vector pointing in the direction of steepest descent,
-            // we can search for a scale parameter `alpha` that moves us as far as possible while
-            // still decreasing the score. This is like golf: we drive the ball as far as possible
-            // while still setting us closer to the hole (the solution).
-            // Keep track of the minimum and maximum alpha values we ever use.
-            // This will help adjust `initAlpha` on a circuit-by-circuit basis,
-            // for optimal safe convergence.
-
-            // See document in this repo: theory/armijo_1966.pdf
-            // See also: https://en.wikipedia.org/wiki/Backtracking_line_search
-            double alpha = initAlpha;
-            for(;;)
-            {
-                for (Node& n : nodeList)
-                    if (!n.forcedVoltage)
-                        n.voltage[0] = n.savedVoltage + (alpha * n.slope);
-
-                double score1 = updateCurrents(dt);
-                if (score1 <= score0 - stepControlParameter*alpha*magnitude)
-                {
-                    // Maintain debug info about the range of alpha values that were satisfactory.
-                    if (minAlpha < 0.0 || alpha < minAlpha)
-                        minAlpha = alpha;
-
-                    if (alpha > maxAlpha)       // handles sentinel value maxAlpha = -1 also.
-                        maxAlpha = alpha;
-
-                    // Leave voltages adjusted and return the improved rms current error.
-                    double rms = std::sqrt(score1);
-                    if (debug) printf("updateNodeVoltages: rms=%lg, alpha=%lg\n", rms, alpha);
-                    return rms;
-                }
-
-                // Try again, closer to the starting point.
-                alpha *= backtrackParameter;
-            }
+            halt = (bestScore == score0);       // halt if we could not make any improvement
+            return bestScore;
         }
 
         void confirmLocked() const
@@ -424,7 +419,7 @@ namespace Analog
                     printf("simulationStep(%d): rms=%lg\n", count, rmsCurrentError);
                     debugState();
                 }
-                if (halt || rmsCurrentError < rmsCurrentErrorTolerance)
+                if (halt || rmsCurrentError < rmsCurrentErrorToleranceNanoAmps)
                     return SolutionResult(count, totalCurrentUpdates - currentUpdatesBefore, rmsCurrentError);
             }
 
@@ -472,13 +467,12 @@ namespace Analog
         const double VNEG = -12;       // negative supply voltage fed to all op-amps
 
         bool debug = false;
-        double rmsCurrentErrorTolerance = 1.0e-8;     // amps : adjust as necessary for a given circuit, to balance accuracy with convergence
-        double deltaVoltage = 1.0e-9;       // step size to try each axis (node) in the search space
+        double rmsCurrentErrorToleranceNanoAmps = 1.0;  // adjust as necessary for a given circuit, to balance accuracy with convergence
+        double deltaVoltage = 1.0e-9;                   // minimum step size to try each axis (node) in the search space
         int minInternalSamplingRate = 40000;            // we oversample as needed to reach this minimum sampling rate for the circuit solver
         int retryLimit = 100;
-        double initAlpha = 1.0;     // [volts] how far away from previous voltage vector to start the gradient descent search
-        double stepControlParameter = 0.5;      // `c` in https://en.wikipedia.org/wiki/Backtracking_line_search
-        double backtrackParameter = 0.5;        // `tau` in https://en.wikipedia.org/wiki/Backtracking_line_search
+        double stepDilation = 1.1;         // exponential acceleration rate for orthogonal search algorithm
+        double stepContraction = 2.0;      // exponential deceleration rate for orthogonal search algorithm
 
         void lock()
         {
@@ -497,7 +491,6 @@ namespace Analog
             totalCurrentUpdates = 0;
             totalSamples = 0;
             simulationTime = 0.0;
-            minAlpha = maxAlpha = -1;   // sentinel values to indicate unknowns
 
             for (Resistor& r : resistorList)
                 r.initialize();
@@ -754,7 +747,7 @@ namespace Analog
 
         PerformanceStats getPerformanceStats() const
         {
-            return PerformanceStats(totalAdjustNodeVoltagesCount, totalCurrentUpdates, totalSamples, simulationTime, minAlpha, maxAlpha);
+            return PerformanceStats(totalAdjustNodeVoltagesCount, totalCurrentUpdates, totalSamples, simulationTime);
         }
     };
 }

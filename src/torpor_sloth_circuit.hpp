@@ -56,8 +56,6 @@ namespace Analog
             xNodeVoltage = &nodeVoltage(n2);
             yNodeVoltage = &nodeVoltage(n5);
             zNodeVoltage = &nodeVoltage(n7);
-
-            rmsCurrentErrorTolerance = 1.0e-4;
         }
 
         void setKnobPosition(double fraction)
