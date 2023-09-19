@@ -59,6 +59,7 @@ namespace Analog
 
             stepDilation = 2.0;
             stepContraction = 10.1;
+            backtrackLimit = 3;
         }
 
         void setKnobPosition(double fraction)

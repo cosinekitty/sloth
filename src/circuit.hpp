@@ -347,7 +347,7 @@ namespace Analog
                     // Keep going in that direction by an exponentially increasing step
                     // until we stop finding better scores.
                     int backtrackCount = 0;
-                    while (backtrackCount < 3)
+                    while (backtrackCount < backtrackLimit)
                     {
                         n.voltage[0] = bestVoltage + voltageStep;
                         double score1 = updateCurrents(dt);
@@ -470,9 +470,10 @@ namespace Analog
         double rmsCurrentErrorToleranceNanoAmps = 1.0;  // adjust as necessary for a given circuit, to balance accuracy with convergence
         double deltaVoltage = 1.0e-9;                   // minimum step size to try each axis (node) in the search space
         int minInternalSamplingRate = 40000;            // we oversample as needed to reach this minimum sampling rate for the circuit solver
-        int retryLimit = 100;
+        int retryLimit = 20;
         double stepDilation = 1.1;         // exponential acceleration rate for orthogonal search algorithm
         double stepContraction = 2.0;      // exponential deceleration rate for orthogonal search algorithm
+        int backtrackLimit = 3;
 
         void lock()
         {
