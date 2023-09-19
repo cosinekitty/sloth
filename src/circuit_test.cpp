@@ -341,7 +341,7 @@ static int UnitTest_Torpor()
             return 1;
         }
 
-        if (sample % SAMPLE_RATE == 0)
+        if (sample < 10 || sample % SAMPLE_RATE == 0)
         {
             printf("Torpor: sample=%d, adjustNodeVoltagesCount=%d, currentUpdates=%d, rms=%lg, x=%0.6lf, y=%0.6lf, z=%0.6lf\n",
                 sample,
