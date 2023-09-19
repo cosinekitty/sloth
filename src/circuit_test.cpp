@@ -323,6 +323,7 @@ static int UnitTest_Torpor()
     double startTime = TimeInSeconds();
     const int nseconds = 120;
     const int nsamples = nseconds * SAMPLE_RATE;
+    double maxRmsCurrentError = 0;
     for (int sample = 0; sample < nsamples; ++sample)
     {
         SolutionResult result = circuit.update(SAMPLE_RATE);
@@ -331,6 +332,14 @@ static int UnitTest_Torpor()
         double vx = circuit.xVoltage();
         double vy = circuit.yVoltage();
         double vz = circuit.zVoltage();
+        if (result.rmsCurrentError > maxRmsCurrentError)
+            maxRmsCurrentError = result.rmsCurrentError;
+
+        if (result.rmsCurrentError > 5.0)
+        {
+            printf("Torpor(sample %d): FAIL: EXCESSIVE rms current error = %lg nA\n", sample, maxRmsCurrentError);
+            return 1;
+        }
 
         if (sample % SAMPLE_RATE == 0)
         {
@@ -382,9 +391,10 @@ static int UnitTest_Torpor()
         return 1;
     }
 
-    printf("Torpor: PASS -- meanAdjustNodeVoltages=%lg, meanCurrentUpdates=%lg, simulated %d seconds in %0.3lf seconds of real time.\n",
+    printf("Torpor: PASS -- meanAdjustNodeVoltages=%lg, meanCurrentUpdates=%lg, max rms=%lg nA, simulated %d seconds in %0.3lf seconds of real time.\n",
         stats.meanAdjustNodeVoltagesPerSample(),
         stats.meanCurrentUpdatesPerSample(),
+        maxRmsCurrentError,
         nseconds,
         elapsedTime
     );

@@ -56,6 +56,9 @@ namespace Analog
             xNodeVoltage = &nodeVoltage(n2);
             yNodeVoltage = &nodeVoltage(n5);
             zNodeVoltage = &nodeVoltage(n7);
+
+            stepDilation = 2.0;
+            stepContraction = 10.1;
         }
 
         void setKnobPosition(double fraction)
