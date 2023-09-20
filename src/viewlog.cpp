@@ -7,6 +7,7 @@
 */
 
 #include <cstdio>
+#include <cstring>
 #include "plotter.hpp"
 
 
@@ -18,14 +19,33 @@ double ArduinoVoltage(int a)
 }
 
 
+double SelectVoltage(char varname, double x, double y, double z)
+{
+    switch (varname)
+    {
+    case 'x': return x;
+    case 'y': return y;
+    case 'z': return z;
+    default:  return 0;
+    }
+}
+
+
 int main(int argc, const char *argv[])
 {
-    if (argc != 2)
+    if (argc != 3)
     {
-        printf("USAGE: viewlog filename.csv\n");
+        printf("USAGE: viewlog filename.csv varpair\n");
         return 1;
     }
     const char *filename = argv[1];
+    const char *varlist = argv[2];
+    if (strlen(varlist) != 2 || varlist[0] < 'x' || varlist[0] > 'z' || varlist[1] < 'x' || varlist[1] > 'z')
+    {
+        printf("ERROR: The second parameter must contain a pair of variables to plot from the list x, y, z.\n");
+        return 1;
+    }
+
     FILE *infile = fopen(filename, "rt");
     if (infile == nullptr)
     {
@@ -58,7 +78,10 @@ int main(int argc, const char *argv[])
                     ClearBackground(BLACK);
                     double vx = ArduinoVoltage(ax);
                     double vy = ArduinoVoltage(ay);
-                    plotter.plot(vx, vy);
+                    double vz = ArduinoVoltage(az);
+                    double first = SelectVoltage(varlist[0], vx, vy, vz);
+                    double second = SelectVoltage(varlist[1], vx, vy, vz);
+                    plotter.plot(first, second);
                 }
             }
             else

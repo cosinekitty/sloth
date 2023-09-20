@@ -15,5 +15,5 @@ cppcheck --error-exitcode=9 --inline-suppr --suppress=missingIncludeSystem -I . 
 
 g++ -O3 -Wall -Werror -o viewlog viewlog.cpp -l raylib -l pthread -l dl || exit 1
 
-./viewlog ${FILENAME} || exit 1
+./viewlog ${FILENAME} xy || exit 1
 exit 0
