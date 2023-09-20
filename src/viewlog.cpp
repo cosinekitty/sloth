@@ -33,16 +33,13 @@ int main(int argc, const char *argv[])
         return 1;
     }
 
-    Plotter plotter(5000);
-    double vx = 0;
-    double vy = 0;
+    Plotter plotter(500);
 
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Sloth Torpor Data");
     SetTargetFPS(FRAME_RATE);
     while (!WindowShouldClose())
     {
         BeginDrawing();
-        ClearBackground(BLACK);
         if (infile != nullptr)
         {
             char line[100];
@@ -56,8 +53,13 @@ int main(int argc, const char *argv[])
                     fclose(infile);
                     infile = nullptr;
                 }
-                vx = ArduinoVoltage(ax);
-                vy = ArduinoVoltage(ay);
+                else
+                {
+                    ClearBackground(BLACK);
+                    double vx = ArduinoVoltage(ax);
+                    double vy = ArduinoVoltage(ay);
+                    plotter.plot(vx, vy);
+                }
             }
             else
             {
@@ -66,7 +68,6 @@ int main(int argc, const char *argv[])
                 infile = nullptr;
             }
         }
-        plotter.plot(vx, vy);
         EndDrawing();
     }
     CloseWindow();

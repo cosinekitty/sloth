@@ -1,13 +1,19 @@
 #!/bin/bash
 
+if [[ -z "$1" ]]; then
+    FILENAME=../hardware/data/cvn1_r0.csv
+else
+    FILENAME=$1
+fi
+
+if [[ ! -f ${FILENAME} ]]; then
+    echo "File not found: ${FILENAME}"
+    exit 1
+fi
+
 cppcheck --error-exitcode=9 --inline-suppr --suppress=missingIncludeSystem -I . -I /usr/local/include  --enable=all viewlog.cpp || exit 1
 
-if [[ "$1" == "debug" ]]; then
-    CPPOPT="-Og -g"
-else
-    CPPOPT="-O3"
-fi
-g++ ${CPPOPT} -Wall -Werror -o viewlog viewlog.cpp -l raylib -l pthread -l dl || exit 1
+g++ -O3 -Wall -Werror -o viewlog viewlog.cpp -l raylib -l pthread -l dl || exit 1
 
-./viewlog ../hardware/data/cvn1_r0.csv || exit 1
+./viewlog ${FILENAME} || exit 1
 exit 0
