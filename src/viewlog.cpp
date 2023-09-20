@@ -94,12 +94,11 @@ int main(int argc, const char *argv[])
                 }
                 else
                 {
-                    if (n < 5) aw = 511;        // placeholder value near 0V for files that lack `w`
                     ClearBackground(BLACK);
                     double vx = ArduinoVoltage(ax);
                     double vy = ArduinoVoltage(ay);
                     double vz = ArduinoVoltage(az);
-                    double vw = Node3Voltage(aw);       // `w` requires a different conversion formula
+                    double vw = (n < 5) ? 0.0 : Node3Voltage(aw);    // `w` requires a different conversion formula
                     double first = SelectVoltage(varlist[0], vx, vy, vz, vw);
                     double second = SelectVoltage(varlist[1], vx, vy, vz, vw);
                     plotter.plot(first, second);

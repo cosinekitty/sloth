@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [[ -z "$1" ]]; then
-    FILENAME=../hardware/data/cvn1_r0.csv
+    FILENAME=../hardware/data/old/cvn1_r0.csv
 else
     FILENAME=$1
 fi
