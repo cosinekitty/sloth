@@ -19,13 +19,32 @@ double ArduinoVoltage(int a)
 }
 
 
-double SelectVoltage(char varname, double x, double y, double z)
+double Node3Voltage(int a)
+{
+    // https://docs.google.com/spreadsheets/d/12UB6mihdSQhdCoypwO_CTBR4rIwEmjkxOjuWeSCxXrg/edit#gid=1457893736
+    // I used a different op-amp circuit than the other voltages, because
+    // this node's voltage varies from about -0.25 V to +0.25 V.
+    // I assumed a safe range of -0.5 V to +0.5 V.
+    // Then I chose 4 resistors combined with the op-amp to produce
+    // the formula A = 5*w + 2.5, to convert to the range [0 V, +5 V].
+    // Based on direct measurements, I found the following:
+    // w = -0.499 V     ==>  A = -0.014 V   ==>     -2.96 arduino units
+    // w =  0 V         ==>  A =  2.52 V    ==>    515.59 arduino units
+    // w = +0.500 V     ==>  A = +5.06 V    ==>   1035.18 arduino units
+    // Using these as a reference, I came up with the following formula
+    // for the inferred value of the voltage `w` from the arduino units `a`:
+    return (a*(5.0 / 1023.0) - 2.52) / 5.079079079;
+}
+
+
+double SelectVoltage(char varname, double x, double y, double z, double w)
 {
     switch (varname)
     {
     case 'x': return x;
     case 'y': return y;
     case 'z': return z;
+    case 'w': return w;
     default:  return 0;
     }
 }
@@ -40,9 +59,9 @@ int main(int argc, const char *argv[])
     }
     const char *filename = argv[1];
     const char *varlist = argv[2];
-    if (strlen(varlist) != 2 || varlist[0] < 'x' || varlist[0] > 'z' || varlist[1] < 'x' || varlist[1] > 'z')
+    if (strlen(varlist) != 2)
     {
-        printf("ERROR: The second parameter must contain a pair of variables to plot from the list x, y, z.\n");
+        printf("ERROR: The second parameter must contain a pair of variables to plot from the list x, y, z, w.\n");
         return 1;
     }
 
@@ -65,9 +84,9 @@ int main(int argc, const char *argv[])
             char line[100];
             if (fgets(line, sizeof(line), infile))
             {
-                int millis, ax, ay, az;
-                int n = sscanf(line, "%d,%d,%d,%d", &millis, &ax, &ay, &az);
-                if (n != 4)
+                int millis, ax, ay, az, aw;
+                int n = sscanf(line, "%d,%d,%d,%d,%d", &millis, &ax, &ay, &az, &aw);
+                if (n < 4)
                 {
                     printf("Unexpected number of circuit data read from %s: %d\n", filename, n);
                     fclose(infile);
@@ -75,12 +94,14 @@ int main(int argc, const char *argv[])
                 }
                 else
                 {
+                    if (n < 5) aw = 511;        // placeholder value near 0V for files that lack `w`
                     ClearBackground(BLACK);
                     double vx = ArduinoVoltage(ax);
                     double vy = ArduinoVoltage(ay);
                     double vz = ArduinoVoltage(az);
-                    double first = SelectVoltage(varlist[0], vx, vy, vz);
-                    double second = SelectVoltage(varlist[1], vx, vy, vz);
+                    double vw = Node3Voltage(aw);       // `w` requires a different conversion formula
+                    double first = SelectVoltage(varlist[0], vx, vy, vz, vw);
+                    double second = SelectVoltage(varlist[1], vx, vy, vz, vw);
                     plotter.plot(first, second);
                 }
             }
