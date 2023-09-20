@@ -24,6 +24,7 @@ void loop()
     int vx = analogRead(A0);
     int vy = analogRead(A1);
     int vz = analogRead(A2);
+    int vw = analogRead(A3);
 
     Serial.print(now);
     Serial.print(",");
@@ -32,5 +33,7 @@ void loop()
     Serial.print(vy);
     Serial.print(",");
     Serial.print(vz);
+    Serial.print(",");
+    Serial.print(vw);
     Serial.println();
 }
