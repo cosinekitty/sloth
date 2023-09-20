@@ -9,14 +9,17 @@
 import sys
 from typing import List
 
+VLO = -12.0
+VHI = +12.0
+
 def OutputVoltage(x:float, Q:float, R:float, S:float) -> float:
     return (x/Q + 5.0/S) / (1.0/Q + 1.0/R + 1.0/S)
 
 def Score(Q:float, R:float, S:float) -> float:
     # Calculate the extreme values of the output from the extreme
     # input voltages that can be fed into the converter.
-    y1 = OutputVoltage(-12.0, Q, R, S)
-    y2 = OutputVoltage(+12.0, Q, R, S)
+    y1 = OutputVoltage(VLO, Q, R, S)
+    y2 = OutputVoltage(VHI, Q, R, S)
     if not(0.0 <= y1 <= 5.0) or not(0.0 <= y2 <= 5.0):
         # Not a valid solution: the Arduino could be damaged.
         return -1.0
@@ -47,12 +50,12 @@ def FindResistors() -> int:
         return 1
     Q, R, S = solution
     print('Q = {:0.0f}, R = {:0.0f}, S = {:0.0f}'.format(Q, R, S))
-    y1 = OutputVoltage(-12.0, Q, R, S)
-    y2 = OutputVoltage(+12.0, Q, R, S)
+    y1 = OutputVoltage(VLO, Q, R, S)
+    y2 = OutputVoltage(VHI, Q, R, S)
     s1 = round((y1 / 5.0) * 1023)
     s2 = round((y2 / 5.0) * 1023)
-    print('When x = -12V, y = {:0.6f}, reading = {:4d}'.format(y1, s1))
-    print('When x = +12V, y = {:0.6f}, reading = {:4d}'.format(y2, s2))
+    print('When x = {:0.1f}V, y = {:0.6f}, reading = {:4d}'.format(VLO, y1, s1))
+    print('When x = {:0.1f}V, y = {:0.6f}, reading = {:4d}'.format(VHI, y2, s2))
     return 0
 
 if __name__ == '__main__':
