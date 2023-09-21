@@ -224,7 +224,7 @@ $$
 Then compute the weighted mean
 
 $$
-\bar{Q} = \alpha Q{z_n} + (1 - \alpha) Q(z_{n+1})
+\bar{Q} = \alpha Q({z_n}) + (1 - \alpha) Q(z_{n+1})
 $$
 
 Now we have updated estimates for the mean values of
@@ -238,7 +238,7 @@ x_{n+1} = x_n - \frac{\Delta t}{C_1}
     \left(
         \frac{\bar{z}}{R_1} +
         \frac{\bar{Q}}{R_2} +
-        \frac{\bar{w}}{R_3 + \bar{R_9}}
+        \frac{\bar{w}}{R_3 + \bar{K}}
     \right)
 \tag{14}
 $$
@@ -249,7 +249,7 @@ w_{n+1} = w_n + \frac{\Delta t}{C_3}
         \frac{1}{R_6} \bar{x} -
         \left(
             \frac{1}{R_6} +
-            \frac{1}{R_3 + \bar{R_9}} +
+            \frac{1}{R_3 + \bar{K}} +
             \frac{1}{R_7}
         \right) \bar{w}
     \right]
