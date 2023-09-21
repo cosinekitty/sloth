@@ -42,3 +42,30 @@ $$
 $$
 
 Where $U$ is the applied control voltage (CV).
+
+## Isolating variables
+
+Rewrite equations to isolate the node voltage variables $w$, $x$, $y$, and $z$.
+
+We can start with equation (3) to write $w$ in terms of $y$:
+
+$$
+w = - R_7 C_2 \frac{\mathrm{d}y}{\mathrm{d}t}
+\tag{5}
+$$
+
+Solve equation (2) for $x$:
+
+$$
+x = R_6 C_3 \frac{\mathrm{d}w}{\mathrm{d}t} +
+\left( 1 + \frac{R_6}{R_3 + R_9} + \frac{R_6}{R_7} \right) w
+\tag{6}
+$$
+
+Solve equation (4) for $z$:
+
+$$
+z = - R_4 \left( \frac{y}{R_5} + \frac{U}{R_8} \right)
+\tag{7}
+$$
+
