@@ -11,11 +11,11 @@ Write current equations for nodes in the circuit.
 The node `n1` is assumed to be a *virtual ground* at 0V:
 
 $$
-\frac{z}{R_1} + \frac{Q}{R_2} + \frac{w}{R_3+R_9} = -C_1 \frac{\mathrm{d}x}{\mathrm{d}t}
+\frac{z}{R_1} + \frac{Q(z)}{R_2} + \frac{w}{R_3+R_9} = -C_1 \frac{\mathrm{d}x}{\mathrm{d}t}
 \tag{1}
 $$
 
-Where $w$ is the voltage at `n3`, $Q$ is the alternating output of the comparator `U1`, which toggles between +11.38&nbsp;V and &minus;10.64&nbsp;V, depending on the polarity of the output of `U1`, called $z$.
+Where $w$ is the voltage at `n3` and $Q(z)$ is the alternating output of the comparator `U1`, which toggles between +11.38&nbsp;V and &minus;10.64&nbsp;V.
 
 The current equation for node `n3`:
 
