@@ -94,16 +94,16 @@ Rewrite equation (1) to find the infinitesimal change in $x$:
 $$
 \mathrm{d} x = - \frac{\mathrm{d} t}{C_1}
     \left(
-        \frac{z_n}{R_1} +
-        \frac{Q(z_n)}{R_2} +
-        \frac{w_n}{R_3 + K}
+        \frac{z}{R_1} +
+        \frac{Q(z)}{R_2} +
+        \frac{w}{R_3 + K}
     \right)
 \tag{8}
 $$
 
-We know the values of everything on the right hand side of equation (8),
-so we can update the value of $x$ by approximating the infinitesimal
-quantities as finite differences:
+We know the values of everything on the right hand side of equation (8).
+We can update the value of $x$ over a finite time step $\Delta t$
+by approximating the infinitesimal quantities as finite differences:
 
 $$
 x_{n+1} = x_n - \frac{\Delta t}{C_1}
@@ -122,7 +122,7 @@ $$
 $$
 
 Because the control voltage $U$ is also a function of time,
-we express its mean value over the time interval as
+later we will need to express its mean value over the time interval as
 
 $$
 \bar{U} = \frac{U_n + U_{n+1}}{2}
@@ -183,7 +183,7 @@ like $\Delta x$ is risky for accuracy and numerical stability.
 
 Therefore, it is better to refine the algorithm above by using iteration
 to converge on mean values $\bar{x}$ over the interval $x_n$ to $x_{n+1}$,
-$\bar{w}$ over the interval $w_n$ to $w_{n+1}$, etc., wherever a capacitor
+$\bar{w}$ over the interval $w_n$ to $w_{n+1}$. We will do this wherever a capacitor
 is being charged/discharged over the time interval.
 
 The idea is to start with steps (9) through (12) as outlined above to
@@ -207,7 +207,10 @@ $$
 \bar{z} = \frac{z_n + z_{n+1}}{2}
 $$
 
-The mean value $\bar{Q}$ requires care when $z_n$ and $z_{n+1}$ have
+Usually $\bar{Q}$ will be a constant over the time interval,
+because usually the values of $z_n$ and $z_{n+1}$ have the same polarity.
+
+But the mean value $\bar{Q}$ requires care when $z_n$ and $z_{n+1}$ have
 opposite polarities, or more precisely, when $z_n z_{n+1} \lt 0$.
 In this case, use a weighted mean value of $\bar{Q}$ over the time
 interval. Assuming that $z(t)$ is approximately linear over the time
@@ -260,13 +263,14 @@ $$
 
 Fortunately, we can assume the op-amp `U2` responds instanteously
 to its input, since there is no capacitor to be charged or discharged,
-so equation (12) remains unchanged:
+so equation (12) remains unchanged. We re-evaluate it only because
+the estimate of $y_{n+1}$ changes as we iterate toward convergence:
 
 $$
 z_{n+1} = - R_4
     \left (
         \frac{y_{n+1}}{R_5} +
-        \frac{U}{R_8}
+        \frac{\bar{U}}{R_8}
     \right)
 $$
 
