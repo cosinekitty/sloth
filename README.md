@@ -21,16 +21,20 @@ electronics theory and single-variable differential calculus.
 
 ## Circuit description and definitions
 
-<!-- FIXFIXFIX: schematic goes here -->
+![Torpor Sloth schematic](torpor_schematic.jpg)
 
 The circuit consists of resistors, capacitors, and a
 [TL074 quad op-amp](https://www.ti.com/lit/ds/symlink/tl074.pdf) chip.
 Three of the op-amps on the chip, `U2`, `U3`, and `U4`,
 use feedback to operate as linear amplifiers.
-That is, the output voltages
+In other words, the node voltages
 $w$, $x$, $y$, and $z$
 change smoothly with time and stay within well-defined limits
 away from op-amp saturation.
+
+Thus the inverting (&minus;) inputs to `U2`, `U3`, and `U4` can be assumed
+to be fixed to a voltage very near that of their noninverting (+) inputs,
+i.e. 0&nbsp;V. These inverting inputs are called *virtual grounds*.
 
 In contrast, the remaining op-amp `U1` acts as a comparator
 that outputs a binary state voltage
@@ -51,7 +55,7 @@ are consistent with their &plusmn;12&nbsp;V Eurorack supply rail.
 ## Circuit analysis
 
 The node `n1` is assumed to be a *virtual ground* at 0V.
-The sum of currents into that node must be zero:
+The sum of currents into the (&minus;) input of `U3` must be zero:
 
 $$
 \frac{z}{R_1} + \frac{Q(z)}{R_2} + \frac{w}{K} + C_1 \frac{\mathrm{d}x}{\mathrm{d}t} = 0
@@ -61,7 +65,7 @@ $$
 Where $K=R_3+R_9$ is the variable value of the potentiometer $R_9$
 and the fixed resistance $R_3$ in series.
 
-The current equation for node `n3`:
+The current equation for the node labeled $w$:
 
 $$
 \frac{w-x}{R_6} +
