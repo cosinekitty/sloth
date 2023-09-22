@@ -18,6 +18,8 @@ potentiometer $R_9$ and a control voltage $U$.
 This document explains how the hardware design was converted
 into a software simulation. It requires some understanding of
 electronics theory and single-variable differential calculus.
+For a better understanding of the analysis below, I recommend
+watching [this video](https://www.youtube.com/watch?v=HeZRtnRXpEI).
 
 ## Circuit description and definitions
 
@@ -32,9 +34,9 @@ $w$, $x$, $y$, and $z$
 change smoothly with time and stay within well-defined limits
 away from op-amp saturation.
 
-Thus the inverting (&minus;) inputs to `U2`, `U3`, and `U4` can be assumed
+The inverting (&minus;) inputs to `U2`, `U3`, and `U4` can be assumed
 to be fixed to a voltage very near that of their noninverting (+) inputs,
-i.e. 0&nbsp;V. These inverting inputs are called *virtual grounds*.
+which are all 0&nbsp;V. These inverting inputs are called *virtual grounds*.
 
 In contrast, the remaining op-amp `U1` acts as a comparator
 that outputs a binary state voltage
@@ -178,15 +180,16 @@ Approximating infinitesimals like $\mathrm{d}x$ with finite differences
 like $\Delta x$ is risky for accuracy and numerical stability.
 
 Therefore, it is better to refine the algorithm above by using iteration
-to converge on mean values $\bar{x}$ over the interval $x_n$ to $x_{n+1}$,
-$\bar{w}$ over the interval $w_n$ to $w_{n+1}$. We will do this wherever a capacitor
-is being charged/discharged over the time interval.
+to converge on mean values $\bar{x}$, $\bar{w}$, $\bar{y}$, and $\bar{z}$
+over the continuous interval between samples $n$ and $n+1$.
+We will do this wherever a capacitor is being charged/discharged
+continuously during the time interval.
 
 Use equations (7) through (10) to compute initial estimates of
 $x_{n+1}$, $w_{n+1}$, $y_{n+1}$, and $z_{n+1}$,
 as described in the previous section.
 
-Then define estimated mean values over the time interval as
+Then calculate estimated mean values over the time interval as
 
 $$
 \bar{x} = \frac{x_n + x_{n+1}}{2}
