@@ -5,7 +5,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <stdexcept>
 
 namespace Analog
 {
@@ -35,10 +34,6 @@ namespace Analog
         const double R7 = 100.0e+3;
         const double R8 = 470.0e+3;
 
-        // Power supply rail voltages.
-        const double VNEG = -12.0;
-        const double VPOS = +12.0;
-
         // Op-amp saturation voltages.
         // I measured these from my breadboard build of Sloth on the comparator U1.
         const double QNEG = -10.64;
@@ -52,6 +47,10 @@ namespace Analog
         }
 
     public:
+        // Power supply rail voltages.
+        const double VNEG = -12.0;
+        const double VPOS = +12.0;
+
         TorporSlothCircuit()
         {
             initialize();
@@ -98,7 +97,7 @@ namespace Analog
             return z1;
         }
 
-        void update(int sampleRateHz)
+        int update(int sampleRateHz)
         {
             // See derivation in ../hardware/theory/README.md
 
@@ -115,9 +114,10 @@ namespace Analog
             double ey = 0.0;
 
             // Iterate until convergence.
-            const double tolerance = 1.0e-9;        // one nanovolt
+            const double tolerance = 1.0e-12;        // one picovolt
+            const double toleranceSquared = tolerance * tolerance;
 
-            for (int iter = 0; iter < 10; ++iter)
+            for (int iter = 1; iter <= 5; ++iter)
             {
                 // Update the finite changes of the voltage variables after the time interval.
                 double dx = -dt/C1 * (zm/R1 + Qm/R2 + wm/variableResistance);
@@ -131,7 +131,7 @@ namespace Analog
                 // Assume z changes instantaneously because there is no capacitor the U2 feedback loop.
                 double z2 = -R4*(y2/R5 + controlVoltage/R8);
 
-                if (iter > 0)
+                if (iter > 1)
                 {
                     // Has the solver converged?
                     // Calculate how much the deltas have changed since last time.
@@ -139,14 +139,14 @@ namespace Analog
                     double ddw = dw - ew;
                     double ddy = dy - ey;
                     double variance = ddx*ddx + ddw*ddw + ddy*ddy;
-                    if (variance < tolerance*tolerance)
+                    if (variance < toleranceSquared)
                     {
                         // The solution has converged. Update the voltages and return.
                         x1 = x2;
                         w1 = w2;
                         y1 = y2;
                         z1 = z2;
-                        return;
+                        return iter;    // indicate success
                     }
                 }
 
@@ -174,7 +174,7 @@ namespace Analog
                 ey = dy;
             }
 
-            throw std::logic_error("Sloth solver did not converge.");
+            return 0;       // indicate failure to the caller (if they care)
         }
     };
 }
