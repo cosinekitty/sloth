@@ -90,7 +90,7 @@ $$
 ## Software simulation
 
 The simulation is implemented as the C++ class
-[`TorporSlothCircuit`](/src/torpor_sloth_circuit.hpp).
+[`TorporSlothCircuit`](https://github.com/cosinekitty/sloth/blob/main/src/torpor_sloth_circuit.hpp).
 The method `TorporSlothCircuit::update` is called once per
 audio sample to calculate the next circuit state.
 Samples are numbered $n = 0, 1, 2, ...$.
