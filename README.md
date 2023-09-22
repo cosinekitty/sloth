@@ -54,7 +54,6 @@ are consistent with their &plusmn;12&nbsp;V Eurorack supply rail.
 
 ## Circuit analysis
 
-The node `n1` is assumed to be a *virtual ground* at 0V.
 The sum of currents into the (&minus;) input of `U3` must be zero:
 
 $$
@@ -62,10 +61,9 @@ $$
 \tag{2}
 $$
 
-Where $K=R_3+R_9$ is the variable value of the potentiometer $R_9$
-and the fixed resistance $R_3$ in series.
+where $K=R_3+R_9$.
 
-The current equation for the node labeled $w$:
+The corresponding equation for the node labeled $w$ is
 
 $$
 \frac{w-x}{R_6} +
@@ -92,7 +90,7 @@ $$
 ## Software simulation
 
 The simulation is implemented as the C++ class
-[`TorporSlothCircuit`](src/torpor_sloth_circuit.hpp).
+[`TorporSlothCircuit`](/src/torpor_sloth_circuit.hpp).
 The method `TorporSlothCircuit::update` is called once per
 audio sample to calculate the next circuit state.
 Samples are numbered $n = 0, 1, 2, ...$.
