@@ -286,32 +286,36 @@ converge within tolerance.
 More precisely, we keep track of the values of the voltage deltas
 
 $$
-( \Delta x ) _ {n+1} = x_{n+1} - x_n
+\Delta x = x_{n+1} - x_n
 $$
 
 $$
-( \Delta w ) _ {n+1} = w_{n+1} - w_n
+\Delta w = w_{n+1} - w_n
 $$
 
 $$
-( \Delta y ) _ {n+1} = y_{n+1} - y_n
+\Delta y = y_{n+1} - y_n
 $$
 
 and define the changes in successive estimates of the deltas as
 
 $$
-X = ( \Delta x ) _ {n+1} - ( \Delta x ) _ {n}
+X = ( \Delta x ) _ {i+1} - ( \Delta x ) _ {i}
 $$
 
 $$
-W = ( \Delta w ) _ {n+1} - ( \Delta w ) _ {n}
+W = ( \Delta w ) _ {i+1} - ( \Delta w ) _ {i}
 $$
 
 $$
-Y = ( \Delta y ) _ {n+1} - ( \Delta y ) _ {n}
+Y = ( \Delta y ) _ {i+1} - ( \Delta y ) _ {i}
 $$
 
-Keep iterating until
+where $i$ is the convergence iteration counter.
+Note that $i$ increases by one every time we update our estimates
+of $\Delta x$, $\Delta y$, and $\Delta w$.
+
+Keep iterating and incrementing $i$ until
 
 $$
 X^2 + W^2 + Y^2 \lt \epsilon^2
