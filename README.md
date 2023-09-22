@@ -93,7 +93,6 @@ The simulation is implemented as the C++ class
 [`TorporSlothCircuit`](https://github.com/cosinekitty/sloth/blob/main/src/torpor_sloth_circuit.hpp).
 The method `TorporSlothCircuit::update` is called once per
 audio sample to calculate the next circuit state.
-Samples are numbered $n = 0, 1, 2, ...$.
 All calculations use 64-bit IEEE floating-point arithmetic
 to ensure stability and convergence.
 
@@ -284,16 +283,28 @@ converge within tolerance.
 More precisely, we keep track of the values of the voltage deltas
 
 $$
-(\Delta x)_{n+1} = x_{n+1} - x_n \\
-(\Delta w)_{n+1} = w_{n+1} - w_n \\
+(\Delta x)_{n+1} = x_{n+1} - x_n
+$$
+
+$$
+(\Delta w)_{n+1} = w_{n+1} - w_n
+$$
+
+$$
 (\Delta y)_{n+1} = y_{n+1} - y_n
 $$
 
 and define the changes in successive estimates of the deltas as
 
 $$
-X = (\Delta x)_{n+1} - (\Delta x)_{n} \\
-W = (\Delta w)_{n+1} - (\Delta w)_{n} \\
+X = (\Delta x)_{n+1} - (\Delta x)_{n}
+$$
+
+$$
+W = (\Delta w)_{n+1} - (\Delta w)_{n}
+$$
+
+$$
 Y = (\Delta y)_{n+1} - (\Delta y)_{n}
 $$
 
