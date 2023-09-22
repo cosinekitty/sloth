@@ -8,24 +8,28 @@
 
 Write current equations for nodes in the circuit.
 
-The node `n1` is assumed to be a *virtual ground* at 0V:
+The node `n1` is assumed to be a *virtual ground* at 0V.
+The sum of currents into that node must be zero:
 
 $$
-\frac{z}{R_1} + \frac{Q(z)}{R_2} + \frac{w}{R_3+K} = -C_1 \frac{\mathrm{d}x}{\mathrm{d}t}
+\frac{z}{R_1} + \frac{Q(z)}{R_2} + \frac{w}{K} + C_1 \frac{\mathrm{d}x}{\mathrm{d}t} = 0
 \tag{1}
 $$
 
-Where $w$ is the voltage at `n3`, $K$ is the variable value of the potentiometer $R_9$,
+Where $w$ is the voltage at `n3`, $K=R_3+R_9$ is the variable value of a potentiometer and fixed resistance in series,
 and $Q(z)$ is the alternating output of the comparator `U1`.
+
 In my breadboard construction of the Sloth circuit, I measure $Q(z)$ toggling between
 +11.38&nbsp;V and &minus;10.64&nbsp;V, based on the polarity of $z$.
+These values are a consequence of using &plusmn;12&nbsp;V supply rails
+combined with the behavior of the TL074 quad op-amp.
 
 The current equation for node `n3`:
 
 $$
 \frac{x-w}{R_6} =
     C_3 \frac{\mathrm{d}w}{\mathrm{d}t} +
-    \frac{w}{R_3 + K} +
+    \frac{w}{K} +
     \frac{w}{R_7}
 \tag{2}
 $$
@@ -61,7 +65,7 @@ Solve equation (2) for $x$:
 
 $$
 x = R_6 C_3 \frac{\mathrm{d}w}{\mathrm{d}t} +
-\left( 1 + \frac{R_6}{R_3 + K} + \frac{R_6}{R_7} \right) w
+\left( 1 + \frac{R_6}{K} + \frac{R_6}{R_7} \right) w
 \tag{6}
 $$
 
@@ -83,8 +87,9 @@ $$
 x_0=w_0=y_0=0
 $$
 
-The control voltage $U$ is sampled at each time step. On each iteration,
-we can calculate $z$ from eqution (7).
+The control voltage $U$ and the variable resistance $K$ are sampled
+once at each time step. They are time-dependent inputs into the
+circuit state.
 
 Depending on the polarity of $U$, calculate the comparator output $Q(z)$ as +11.38&nbsp;V
 if $U \ge 0$, or &minus;10.64&nbsp;V if $U \lt 0$.
@@ -96,7 +101,7 @@ $$
     \left(
         \frac{z}{R_1} +
         \frac{Q(z)}{R_2} +
-        \frac{w}{R_3 + K}
+        \frac{w}{K}
     \right)
 \tag{8}
 $$
@@ -110,7 +115,7 @@ x_{n+1} = x_n - \frac{\Delta t}{C_1}
     \left(
         \frac{z_n}{R_1} +
         \frac{Q(z_n)}{R_2} +
-        \frac{w_n}{R_3 + \bar{K}}
+        \frac{w_n}{\bar{K}}
     \right)
 \tag{9}
 $$
@@ -137,7 +142,7 @@ w_{n+1} = w_n + \frac{\Delta t}{C_3}
         \frac{1}{R_6} x_n -
         \left(
             \frac{1}{R_6} +
-            \frac{1}{R_3 + \bar{K}} +
+            \frac{1}{\bar{K}} +
             \frac{1}{R_7}
         \right) w_n
     \right]
@@ -173,8 +178,8 @@ Q(z_{n+1}) =
 \tag{13}
 $$
 
-Now we could keep iterating steps (9) through (13) for each successive
-sample $n$ to generate the output signal. But this may be too simple for good accuracy.
+We could evaluate steps (9) through (13) for each successive sample $n$
+to generate the output signal. But this would be too simple for good accuracy.
 
 ## Refined stability and precision
 
@@ -238,7 +243,7 @@ x_{n+1} = x_n - \frac{\Delta t}{C_1}
     \left(
         \frac{\bar{z}}{R_1} +
         \frac{\bar{Q}}{R_2} +
-        \frac{\bar{w}}{R_3 + \bar{K}}
+        \frac{\bar{w}}{\bar{K}}
     \right)
 \tag{14}
 $$
@@ -249,7 +254,7 @@ w_{n+1} = w_n + \frac{\Delta t}{C_3}
         \frac{1}{R_6} \bar{x} -
         \left(
             \frac{1}{R_6} +
-            \frac{1}{R_3 + \bar{K}} +
+            \frac{1}{\bar{K}} +
             \frac{1}{R_7}
         \right) \bar{w}
     \right]
@@ -261,10 +266,11 @@ y_{n+1} = y_n - \frac{\Delta t}{R_7 C_2} \bar{w}
 \tag{16}
 $$
 
-Fortunately, we can assume the op-amp `U2` responds instanteously
-to its input, since there is no capacitor to be charged or discharged,
-so equation (12) remains unchanged. We re-evaluate it only because
-the estimate of $y_{n+1}$ changes as we iterate toward convergence:
+Unlike the other voltage variables, we can assume the op-amp `U2`
+responds instanteously to its input, since there is no capacitor
+to be charged or discharged. Therefore equation (12) remains valid.
+We re-evaluate (12) on each iteration because the estimate
+of $y_{n+1}$ changes each time.
 
 $$
 z_{n+1} = - R_4
@@ -275,6 +281,37 @@ z_{n+1} = - R_4
 $$
 
 Iterate these steps until the values $x_{n+1}$, $w_{n+1}$, $y_{n+1}$, and $z_{n+1}$
-converge within tolerance. This should probably happen after two or three iterations
-at the most.
+converge within tolerance. More precisely, we keep track of the values of
+the voltage deltas
 
+$$
+\begin{aligned}
+(\Delta x)_{n+1} & = x_{n+1} - x_n \\
+(\Delta w)_{n+1} & = w_{n+1} - w_n \\
+(\Delta y)_{n+1} & = y_{n+1} - y_n
+\end{aligned}
+$$
+
+and define the changes in the deltas as
+
+$$
+\begin{aligned}
+X_{n+1} & = (\Delta x)_{n+1} - (\Delta x)_{n} \\
+W_{n+1} & = (\Delta w)_{n+1} - (\Delta w)_{n} \\
+Y_{n+1} & = (\Delta y)_{n+1} - (\Delta y)_{n}
+\end{aligned}
+$$
+
+Keep iterating until
+
+$$
+{X_{n+1}}^2 + {W_{n+1}}^2 + {Y_{n+1}}^2 \lt \epsilon^2
+$$
+
+where $\epsilon_{n+1}$ is a voltage error tolerance.
+In my implementation I use a tolerance of one picovolt ($\epsilon = 10^{-12} V$).
+At a sample rate of 44100&nbsp;Hz, convergence almost always happens in 3 iterations, but it never takes more than 4 iterations.
+It is important in general to test at different sample rates and
+input conditions to make sure convergence happens, and to provide
+a failsafe iteration limit. In my implementation, I never allow
+more than 5 iterations.
