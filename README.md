@@ -283,29 +283,29 @@ converge within tolerance.
 More precisely, we keep track of the values of the voltage deltas
 
 $$
-( \Delta x )_{n+1} = x_{n+1} - x_n
+( \Delta x ) _ {n+1} = x_{n+1} - x_n
 $$
 
 $$
-( \Delta w )_{n+1} = w_{n+1} - w_n
+( \Delta w ) _ {n+1} = w_{n+1} - w_n
 $$
 
 $$
-( \Delta y )_{n+1} = y_{n+1} - y_n
+( \Delta y ) _ {n+1} = y_{n+1} - y_n
 $$
 
 and define the changes in successive estimates of the deltas as
 
 $$
-X = ( \Delta x )_{n+1} - ( \Delta x )_{n}
+X = ( \Delta x ) _ {n+1} - ( \Delta x ) _ {n}
 $$
 
 $$
-W = ( \Delta w )_{n+1} - ( \Delta w )_{n}
+W = ( \Delta w ) _ {n+1} - ( \Delta w ) _ {n}
 $$
 
 $$
-Y = ( \Delta y )_{n+1} - ( \Delta y )_{n}
+Y = ( \Delta y ) _ {n+1} - ( \Delta y ) _ {n}
 $$
 
 Keep iterating until
