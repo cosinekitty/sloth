@@ -2,7 +2,7 @@
 
 This is a software emulation of the Torpor variant of the Eurorack module
 [Sloth Chaos](https://www.nonlinearcircuits.com/modules/p/4hp-sloth-chaos)
-by Andrew Fink at
+by Andrew Fitch at
 [Nonlinear Circuits](https://www.nonlinearcircuits.com/).
 Sloth Torpor is a chaotic oscillator that emits two slowly
 changing voltages designated $x$ and $y$.
