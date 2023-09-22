@@ -33,6 +33,25 @@ double TimeInSeconds()
     return sec;
 }
 
+
+inline int CheckVoltage(double v, const char *name, int sample)
+{
+    if (!std::isfinite(v))
+    {
+        printf("FAILURE - Non-finite value for %s in sample %d", name, sample);
+        return 1;
+    }
+
+    if (v < -10.0 || v > +10.0)
+    {
+        printf("FAILURE - %s = %lg V is out of bounds in sample %d", name, v, sample);
+        return 1;
+    }
+
+    return 0;
+}
+
+
 int main()
 {
     using namespace Analog;
@@ -57,21 +76,13 @@ int main()
             printf("SIMULATION FAILURE at sample %d.\n", sample);
             return 1;
         }
+
+        if (CheckVoltage(circuit.xVoltage(), "x", sample)) return 1;
+        if (CheckVoltage(circuit.yVoltage(), "y", sample)) return 1;
+        if (CheckVoltage(circuit.zVoltage(), "z", sample)) return 1;
+
         iterSum += iter;
         maxIter = std::max(maxIter, iter);
-        double x = circuit.xVoltage();
-        if (x < circuit.VNEG || x > circuit.VPOS)
-        {
-            printf("INVALID x voltage %0.6lg at sample %d.\n", x, sample);
-            return 1;
-        }
-
-        double y = circuit.yVoltage();
-        if (y < circuit.VNEG || y > circuit.VPOS)
-        {
-            printf("INVALID y voltage %0.6lg at sample %d.\n", y, sample);
-            return 1;
-        }
     }
     double elapsedSeconds = TimeInSeconds() - startTime;
     printf("Elapsed time = %0.3lf seconds, ratio = %0.6lg, CPU overhead = %lg percent.\n",
