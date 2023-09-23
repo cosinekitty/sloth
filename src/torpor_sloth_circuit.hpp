@@ -1,5 +1,12 @@
 /*
-    torpor_sloth_circuit.hpp  -  Don Cross  -  2023-09-07
+    sloth_circuit.hpp  -  Don Cross <cosinekitty@gmail.com>  -  2023-09-23
+
+    A software emulation of the "Sloth Chaos" hardware module by Andrew Fitch:
+    https://www.nonlinearcircuits.com/modules/p/4hp-sloth-chaos
+
+    The following document describes the circuit schematic, analysis,
+    and the mathematical derivation of this emulation algorithm.
+    https://github.com/cosinekitty/sloth/blob/main/README.md
 */
 #pragma once
 
@@ -11,13 +18,18 @@ namespace Analog
     class TorporSlothCircuit
     {
     private:
-        double variableResistance{};    // the total resistance R3 (fixed) + R9 (variable)
-        double controlVoltage{};        // control voltage fed into the circuit via R8
+        // Inputs
+        double K{};     // the total resistance R3 (fixed) + R9 (variable)
+        double U{};     // control voltage fed into the circuit via R8
 
+        // Node voltages
         double x1{};    // voltage at the output of op-amp U3
         double w1{};    // voltage at the top of capacitor C3
         double y1{};    // voltage at the output of op-amp U4
         double z1{};    // voltage at the output of op-amp U2
+
+        // The iteration safety limit for the convergence solver.
+        const int iterationLimit = 5;
 
         // Capacitor values in farads.
         const double C1 = 2.0e-6;
@@ -25,7 +37,7 @@ namespace Analog
         const double C3 = 50.0e-6;
 
         // Resistor values in ohms.
-        // R3 + R9 = variableResistance, so they are not listed here.
+        // R3 + R9 = K, so R3 and R9 are not listed here.
         const double R1 = 1.0e+6;
         const double R2 = 4.7e+6;
         const double R4 = 100.0e+3;
@@ -33,6 +45,10 @@ namespace Analog
         const double R6 = 100.0e+3;
         const double R7 = 100.0e+3;
         const double R8 = 470.0e+3;
+
+        // Power supply rail voltages.
+        const double VNEG = -12.0;
+        const double VPOS = +12.0;
 
         // Op-amp saturation voltages.
         // I measured these from my breadboard build of Sloth on the comparator U1.
@@ -47,10 +63,6 @@ namespace Analog
         }
 
     public:
-        // Power supply rail voltages.
-        const double VNEG = -12.0;
-        const double VPOS = +12.0;
-
         TorporSlothCircuit()
         {
             initialize();
@@ -73,13 +85,13 @@ namespace Analog
 
             // The maximum value of the variable resistor is 10K.
             // This is in series with a fixed resistance of 100K.
-            variableResistance = 100.0e+3 + (clamped * 10.0e+3);
+            K = 100.0e+3 + (clamped * 10.0e+3);
         }
 
         void setControlVoltage(double cv)
         {
             // Clamp the control voltage to the circuit's supply rails.
-            controlVoltage = std::max(VNEG, std::min(VPOS, cv));
+            U = std::max(VNEG, std::min(VPOS, cv));
         }
 
         double xVoltage() const
@@ -99,8 +111,6 @@ namespace Analog
 
         int update(int sampleRateHz)
         {
-            // See derivation in ../hardware/theory/README.md
-
             // Start with crude estimates that the voltage variables remain constant over the time interval.
             double xm = x1;
             double wm = w1;
@@ -117,11 +127,11 @@ namespace Analog
             const double tolerance = 1.0e-12;        // one picovolt
             const double toleranceSquared = tolerance * tolerance;
 
-            for (int iter = 1; iter <= 5; ++iter)
+            for (int iter = 1; true; ++iter)
             {
                 // Update the finite changes of the voltage variables after the time interval.
-                double dx = -dt/C1 * (zm/R1 + Qm/R2 + wm/variableResistance);
-                double dw = dt/C3*(xm/R6-(1/R6 + 1/variableResistance + 1/R7)*wm);
+                double dx = -dt/C1 * (zm/R1 + Qm/R2 + wm/K);
+                double dw = dt/C3*(xm/R6-(1/R6 + 1/K + 1/R7)*wm);
                 double dy = (-dt/(R7*C2)) * wm;
 
                 double x2 = x1 + dx;
@@ -129,7 +139,7 @@ namespace Analog
                 double y2 = y1 + dy;
 
                 // Assume z changes instantaneously because there is no capacitor the U2 feedback loop.
-                double z2 = -R4*(y2/R5 + controlVoltage/R8);
+                double z2 = -R4*(y2/R5 + U/R8);
 
                 if (iter > 1)
                 {
@@ -139,14 +149,15 @@ namespace Analog
                     double ddw = dw - ew;
                     double ddy = dy - ey;
                     double variance = ddx*ddx + ddw*ddw + ddy*ddy;
-                    if (variance < toleranceSquared)
+                    if (variance < toleranceSquared || iter >= iterationLimit)
                     {
-                        // The solution has converged. Update the voltages and return.
+                        // The solution has converged, or we have hit the iteration safety limit.
+                        // Update the circuit state voltages and return.
                         x1 = x2;
                         w1 = w2;
                         y1 = y2;
                         z1 = z2;
-                        return iter;    // indicate success
+                        return iter;
                     }
                 }
 
@@ -173,8 +184,6 @@ namespace Analog
                 ew = dw;
                 ey = dy;
             }
-
-            return 0;       // indicate failure to the caller (if they care)
         }
     };
 }
