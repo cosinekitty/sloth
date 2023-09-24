@@ -4,7 +4,7 @@
 For more information, see:
 https://github.com/cosinekitty/svgpanel
 """
-from typing import Any, List, Tuple, Dict
+from typing import Any, List, Tuple, Dict, Optional
 from enum import Enum, unique
 import xml.etree.ElementTree as et
 from fontTools.ttLib import TTFont                          # type: ignore
@@ -154,10 +154,10 @@ class TextItem:
 
 class Element:
     """An XML element inside an SVG file."""
-    def __init__(self, tag:str, id:str = '') -> None:
+    def __init__(self, tag:str, id:str = '', children: Optional[List['Element']] = None) -> None:
         self.tag = tag
         self.attrib: Dict[str, str] = {}
-        self.children: List[Element] = []
+        self.children: List[Element] = children or []
         self.setAttrib('id', id)
 
     def setAttrib(self, key:str, value:str) -> 'Element':
@@ -181,6 +181,13 @@ class Element:
         for child in self.children:
             elem.append(child.xml())
         return elem
+
+
+class Path(Element):
+    """An SVG path with pre-rendered coordinates."""
+    def __init__(self, dpath:str, id:str = '') -> None:
+        super().__init__('path', id)
+        self.setAttrib('d', dpath)
 
 
 class TextPath(Element):
