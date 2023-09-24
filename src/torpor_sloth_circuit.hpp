@@ -109,7 +109,7 @@ namespace Analog
             return z1;
         }
 
-        int update(int sampleRateHz)
+        int update(float sampleRateHz)
         {
             // Start with crude estimates that the voltage variables remain constant over the time interval.
             double xm = x1;
