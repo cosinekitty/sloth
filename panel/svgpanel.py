@@ -185,9 +185,37 @@ class Element:
 
 class Path(Element):
     """An SVG path with pre-rendered coordinates."""
-    def __init__(self, dpath:str, id:str = '') -> None:
+    def __init__(self, dpath:str, style:str = '', id:str = '') -> None:
         super().__init__('path', id)
         self.setAttrib('d', dpath)
+        self.setAttrib('style', style)
+
+
+class LineElement(Element):
+    """SVG Line"""
+    def __init__(self, x1:float, y1:float, x2:float, y2:float, style:str = '', id:str = '') -> None:
+        super().__init__('line', id)
+        self.setAttrib('x1', str(x1))
+        self.setAttrib('y1', str(y1))
+        self.setAttrib('x2', str(x2))
+        self.setAttrib('y2', str(y2))
+        self.setAttrib('style', style)
+
+
+class Polyline(Element):
+    """SVG Polyline"""
+    def __init__(self, points:str, style:str = '', id:str = '') -> None:
+        super().__init__('polyline', id)
+        self.setAttrib('points', points)
+        self.setAttrib('style', style)
+
+
+class Polygon(Element):
+    """SVG Polygon"""
+    def __init__(self, points:str, style:str = '', id:str = '') -> None:
+        super().__init__('polygon', id)
+        self.setAttrib('points', points)
+        self.setAttrib('style', style)
 
 
 class TextPath(Element):

@@ -33,7 +33,7 @@ def GenerateMainPanel() -> int:
             Path('m 54.35993,18.417287 v -4.602853 q 0,-1.692704 -1.549475,-1.692704 -1.998693,0 -1.998693,2.591139 v 3.704418 H 49.626869 V 8.2871038 h 1.184893 v 3.0078052 l -0.05208,0.937497 h 0.0651 q 0.670571,-1.093747 2.187494,-1.093747 2.532546,0 2.532546,2.610671 v 4.667957 z')
         ])
         .setAttrib('transform', 'matrix(0.42512425,0,0,0.37962349,-5.4519469,3.4394483)')
-        .setAttrib('style', 'fill:#90491a;stroke:#90491a;stroke-width:0.188976;stroke-linejoin:bevel')
+        .setAttrib('style', 'fill:#5c3114;stroke:#5c3114;stroke-width:0.188976;stroke-linejoin:bevel')
     )
     pl.append(
         Element('g', 'text_torpor', [
@@ -66,6 +66,25 @@ def GenerateMainPanel() -> int:
         ])
         .setAttrib('transform', 'translate(-0.03503753,-5.4001521)')
         .setAttrib('style', 'fill:#dc7f41;stroke:#b15b21;stroke-width:0.05;stroke-linejoin:bevel')
+    )
+    pl.append(
+        Element('g', 'nlc_logo', [
+            Polyline('87 351.05 87 339.53 94.75 351.05 94.75 339.53', 'fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.56px'),
+            Polyline('94.75 339.53 94.75 351.05 102.49 351.05', 'fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.56px'),
+            Path('M108.79,349.13a2,2,0,0,1-1.94,1.92H103a2,2,0,0,1-1.94-1.92v-7.68a1.91,1.91,0,0,1,1.94-1.92h3.87a1.91,1.91,0,0,1,1.94,1.92', 'fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.56px'),
+            Path('M52.28,356.21a11.34,11.34,0,1,0,0-22.68,11.34,11.34,0,1,0,0,22.68', 'fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.08px'),
+            LineElement(63.89, 344.81, 81.2, 344.81, 'fill: none;stroke-linecap: round;stroke-linejoin: round;stroke-width: 1.44px'),
+            LineElement(55.3, 334.01, 48.52, 342.29, 'fill: none;stroke-linecap: round;stroke-linejoin: round;stroke-width: 1.08px'),
+            LineElement(56.63, 347.69, 49.86, 355.73, 'fill: none;stroke-linecap: round;stroke-linejoin: round;stroke-width: 1.08px'),
+            LineElement(48.52, 342.29, 56.63, 347.69, 'fill: none;stroke-linecap: round;stroke-linejoin: round;stroke-width: 1.08px'),
+            Polygon('56.99 347.45 57.24 355.01 53.73 355.85 50.22 355.73 56.99 347.45', 'fill-rule: evenodd'),
+            Polygon('54.82 333.89 57.36 335.09 57.24 347.57 48.16 341.93 54.82 333.89', 'fill-rule: evenodd'),
+            Polygon('56.75 349.25 62.2 349.49 61.96 350.81 60.38 352.25 56.63 355.25 56.75 349.25', 'fill-rule: evenodd'),
+            Polygon('56.63 341.69 63.17 341.57 63.53 345.17 63.29 347.69 62.32 349.97 56.39 349.73 56.63 341.69', 'fill-rule: evenodd'),
+            Polygon('56.99 334.61 59.41 336.17 61.84 338.93 62.8 341.21 63.05 342.05 56.27 341.93 56.99 334.61', 'fill-rule: evenodd')
+        ])
+        .setAttrib('transform', 'scale(0.25) translate(-35,135)')
+        .setAttrib('style', 'fill:#5c3114;stroke:#5c3114;')
     )
     panel.append(pl)
     return Save(panel, svgFileName)
