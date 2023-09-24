@@ -57,8 +57,8 @@ int main()
     using namespace Analog;
 
     TorporSlothCircuit circuit;
-    circuit.setControlVoltage(+5.0);
-    circuit.setKnobPosition(0.0);
+    circuit.setControlVoltage(+0.1);
+    circuit.setKnobPosition(0.5);
 
     const int SAMPLE_RATE = 44100;
     const int SIMULATION_SECONDS = 3600;
