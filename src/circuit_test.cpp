@@ -1,5 +1,5 @@
 #include <cstdio>
-#include "torpor_sloth_circuit.hpp"
+#include "SlothCircuit.hpp"
 
 #if defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__))
 #include <sys/time.h>

@@ -1,5 +1,5 @@
 /*
-    sloth_circuit.hpp  -  Don Cross <cosinekitty@gmail.com>  -  2023-09-23
+    SlothCircuit.hpp  -  Don Cross <cosinekitty@gmail.com>  -  2023-09-23
 
     A software emulation of the "Sloth Chaos" hardware module by Andrew Fitch:
     https://www.nonlinearcircuits.com/modules/p/4hp-sloth-chaos

@@ -6,7 +6,7 @@
     https://github.com/cosinekitty/sloth
 */
 
-#include "torpor_sloth_circuit.hpp"
+#include "SlothCircuit.hpp"
 #include "plotter.hpp"
 
 
