@@ -35,6 +35,38 @@ def SlothTitlePath(text: str, font: Font, panel: Panel) -> TextPath:
     )
 
 
+def LogoElement(panel: Panel) -> Element:
+    # dx = -40.4 moves logo flush left on a panel that is 20.32 wide
+    # dx = +40.9 moves logo just off the right side of the same panel
+    # Adding the two should bring the logo left side flush to the middle
+    # dx = -109.5 moves the logo's right edge just off the left side of the panel
+    # The difference (109.5 - 40.4) = 69.1 must be the width of the logo
+    print(panel.mmWidth)
+    scale = 0.25
+    logoWidth = 69.1
+    basisPanelWidth = 20.32
+    dx = (panel.mmWidth - basisPanelWidth) / (2 * scale) - (logoWidth / 2)
+    return (Element('g', 'nlc_logo', [
+            Polyline('87 351.05 87 339.53 94.75 351.05 94.75 339.53', 'fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.56px'),
+            Polyline('94.75 339.53 94.75 351.05 102.49 351.05', 'fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.56px'),
+            Path('M108.79,349.13a2,2,0,0,1-1.94,1.92H103a2,2,0,0,1-1.94-1.92v-7.68a1.91,1.91,0,0,1,1.94-1.92h3.87a1.91,1.91,0,0,1,1.94,1.92', 'fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.56px'),
+            Path('M52.28,356.21a11.34,11.34,0,1,0,0-22.68,11.34,11.34,0,1,0,0,22.68', 'fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.08px'),
+            LineElement(63.89, 344.81, 81.2, 344.81, 'fill: none;stroke-linecap: round;stroke-linejoin: round;stroke-width: 1.44px'),
+            LineElement(55.3, 334.01, 48.52, 342.29, 'fill: none;stroke-linecap: round;stroke-linejoin: round;stroke-width: 1.08px'),
+            LineElement(56.63, 347.69, 49.86, 355.73, 'fill: none;stroke-linecap: round;stroke-linejoin: round;stroke-width: 1.08px'),
+            LineElement(48.52, 342.29, 56.63, 347.69, 'fill: none;stroke-linecap: round;stroke-linejoin: round;stroke-width: 1.08px'),
+            Polygon('56.99 347.45 57.24 355.01 53.73 355.85 50.22 355.73 56.99 347.45', 'fill-rule: evenodd'),
+            Polygon('54.82 333.89 57.36 335.09 57.24 347.57 48.16 341.93 54.82 333.89', 'fill-rule: evenodd'),
+            Polygon('56.75 349.25 62.2 349.49 61.96 350.81 60.38 352.25 56.63 355.25 56.75 349.25', 'fill-rule: evenodd'),
+            Polygon('56.63 341.69 63.17 341.57 63.53 345.17 63.29 347.69 62.32 349.97 56.39 349.73 56.63 341.69', 'fill-rule: evenodd'),
+            Polygon('56.99 334.61 59.41 336.17 61.84 338.93 62.8 341.21 63.05 342.05 56.27 341.93 56.99 334.61', 'fill-rule: evenodd')
+        ])
+        .setAttrib('transform', 'scale({:0.6g}) translate({:0.6g},135)'.format(scale, dx))
+        .setAttrib('style', 'fill:#5c3114;stroke:#5c3114;')
+    )
+
+
+
 def GenerateSlothPanel(variantName: str) -> int:
     svgFileName = '/home/don/github/nonlinearcircuits/res/Sloth{}.svg'.format(variantName)
     with Font('NotoMono-Regular.ttf') as font:
@@ -70,25 +102,7 @@ def GenerateSlothPanel(variantName: str) -> int:
             .setAttrib('transform', 'translate(-0.03503753,-5.4001521)')
             .setAttrib('style', 'fill:#dc7f41;stroke:#b15b21;stroke-width:0.05;stroke-linejoin:bevel')
         )
-        pl.append(
-            Element('g', 'nlc_logo', [
-                Polyline('87 351.05 87 339.53 94.75 351.05 94.75 339.53', 'fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.56px'),
-                Polyline('94.75 339.53 94.75 351.05 102.49 351.05', 'fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.56px'),
-                Path('M108.79,349.13a2,2,0,0,1-1.94,1.92H103a2,2,0,0,1-1.94-1.92v-7.68a1.91,1.91,0,0,1,1.94-1.92h3.87a1.91,1.91,0,0,1,1.94,1.92', 'fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.56px'),
-                Path('M52.28,356.21a11.34,11.34,0,1,0,0-22.68,11.34,11.34,0,1,0,0,22.68', 'fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.08px'),
-                LineElement(63.89, 344.81, 81.2, 344.81, 'fill: none;stroke-linecap: round;stroke-linejoin: round;stroke-width: 1.44px'),
-                LineElement(55.3, 334.01, 48.52, 342.29, 'fill: none;stroke-linecap: round;stroke-linejoin: round;stroke-width: 1.08px'),
-                LineElement(56.63, 347.69, 49.86, 355.73, 'fill: none;stroke-linecap: round;stroke-linejoin: round;stroke-width: 1.08px'),
-                LineElement(48.52, 342.29, 56.63, 347.69, 'fill: none;stroke-linecap: round;stroke-linejoin: round;stroke-width: 1.08px'),
-                Polygon('56.99 347.45 57.24 355.01 53.73 355.85 50.22 355.73 56.99 347.45', 'fill-rule: evenodd'),
-                Polygon('54.82 333.89 57.36 335.09 57.24 347.57 48.16 341.93 54.82 333.89', 'fill-rule: evenodd'),
-                Polygon('56.75 349.25 62.2 349.49 61.96 350.81 60.38 352.25 56.63 355.25 56.75 349.25', 'fill-rule: evenodd'),
-                Polygon('56.63 341.69 63.17 341.57 63.53 345.17 63.29 347.69 62.32 349.97 56.39 349.73 56.63 341.69', 'fill-rule: evenodd'),
-                Polygon('56.99 334.61 59.41 336.17 61.84 338.93 62.8 341.21 63.05 342.05 56.27 341.93 56.99 334.61', 'fill-rule: evenodd')
-            ])
-            .setAttrib('transform', 'scale(0.25) translate(-35,135)')
-            .setAttrib('style', 'fill:#5c3114;stroke:#5c3114;')
-        )
+        pl.append(LogoElement(panel))
         panel.append(pl)
         return Save(panel, svgFileName)
 
@@ -100,6 +114,7 @@ def GenerateTripleSlothPanel() -> int:
         pl = Element('g', 'PanelLayer')
         pl.append(BorderRect(TRIPLE_SLOTH_PANEL_WIDTH, PANEL_COLOR, BORDER_COLOR))
         pl.append(SlothTitlePath('triple sloth', font, panel))
+        pl.append(LogoElement(panel))
         panel.append(pl)
         return Save(panel, svgFileName)
 
