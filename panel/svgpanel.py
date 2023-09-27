@@ -200,10 +200,10 @@ class LineElement(Element):
     """SVG Line"""
     def __init__(self, x1:float, y1:float, x2:float, y2:float, style:str = '', id:str = '') -> None:
         super().__init__('line', id)
-        self.setAttrib('x1', str(x1))
-        self.setAttrib('y1', str(y1))
-        self.setAttrib('x2', str(x2))
-        self.setAttrib('y2', str(y2))
+        self.setAttrib('x1', '{:0.2f}'.format(x1))
+        self.setAttrib('y1', '{:0.2f}'.format(y1))
+        self.setAttrib('x2', '{:0.2f}'.format(x2))
+        self.setAttrib('y2', '{:0.2f}'.format(y2))
         self.setAttrib('style', style)
 
 

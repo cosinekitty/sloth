@@ -5,6 +5,7 @@
 #   Generate the SVG panel design for the VCV Rack version of Sloth Torpor
 #
 import sys
+import os
 from svgpanel import *
 
 def Print(message:str) -> int:
@@ -20,6 +21,7 @@ TRIPLE_SLOTH_PANEL_WIDTH = 8
 PANEL_COLOR  = '#e6e5e5'
 BORDER_COLOR = '#e6e5e5'
 
+SLOTH_SOURCE_ROOT = '/home/don/github/nonlinearcircuits'
 
 def SlothTitlePath(text: str, font: Font, panel: Panel) -> TextPath:
     ti = TextItem(text, font, 14.0)
@@ -28,7 +30,7 @@ def SlothTitlePath(text: str, font: Font, panel: Panel) -> TextPath:
         6.0,
         HorizontalAlignment.Center,
         VerticalAlignment.Top,
-        'fill:#5c3114;stroke:#5c3114;stroke-width:0.1;stroke-linejoin:bevel',
+        'fill:#5c3114;stroke:#5c3114;stroke-width:0.1;stroke-linejoin:bevel;',
         'text_title',
         1.15,
         1.0
@@ -36,12 +38,6 @@ def SlothTitlePath(text: str, font: Font, panel: Panel) -> TextPath:
 
 
 def LogoElement(panel: Panel) -> Element:
-    # dx = -40.4 moves logo flush left on a panel that is 20.32 wide
-    # dx = +40.9 moves logo just off the right side of the same panel
-    # Adding the two should bring the logo left side flush to the middle
-    # dx = -109.5 moves the logo's right edge just off the left side of the panel
-    # The difference (109.5 - 40.4) = 69.1 must be the width of the logo
-    print(panel.mmWidth)
     scale = 0.25
     logoWidth = 69.1
     basisPanelWidth = 20.32
@@ -66,9 +62,8 @@ def LogoElement(panel: Panel) -> Element:
     )
 
 
-
 def GenerateSlothPanel(variantName: str) -> int:
-    svgFileName = '/home/don/github/nonlinearcircuits/res/Sloth{}.svg'.format(variantName)
+    svgFileName = os.path.join(SLOTH_SOURCE_ROOT, 'res/Sloth{}.svg'.format(variantName))
     with Font('NotoMono-Regular.ttf') as font:
         panel = Panel(SLOTH_PANEL_WIDTH)
         pl = Element('g', 'PanelLayer')
@@ -108,15 +103,78 @@ def GenerateSlothPanel(variantName: str) -> int:
 
 
 def GenerateTripleSlothPanel() -> int:
-    svgFileName = '/home/don/github/nonlinearcircuits/res/TripleSloth.svg'
+    # I traced the original Triple Sloth panel design from
+    # https://www.nonlinearcircuits.com/modules/p/triple-sloth
+    # https://images.squarespace-cdn.com/content/v1/5e6e99e8bd2f8a6de8454feb/1598921820839-I7HNLI8TPHYGSAVQ381V/tripsloths.jpg?format=2500w
+    # onto a sheet of paper. Then I measured points on the paper
+    # with a ruler and derived scaling factors in both the horizontal
+    # and vertical directions (it looks like the image is slightly stretched).
+
+    panel = Panel(TRIPLE_SLOTH_PANEL_WIDTH)
+
+    paperWidth = 78.0       # mm on paper
+    paperHeight = 250.0     # mm on paper
+    xs = panel.mmWidth / paperWidth         # scaling factor for horizontal screen distances
+    ys = panel.mmHeight / paperHeight       # scaling factor for vertical screen distances
+
+    dx = xs * 23.0              # mm screen distance between center line and left/right columns
+
+    x1 = panel.mmWidth/2 - dx   # left column horizontal offset
+    x2 = panel.mmWidth/2        # center column horizontal offset
+    x3 = panel.mmWidth/2 + dx   # right column horizontal offset
+    xn = (x1 + x2)/2            # negative zsum port horizontal offset
+    xp = (x2 + x3)/2            # positive zsum port horizontal offset
+
+    dy1 = ys * 29.2             # vertical distance between knobs and CV, and between outputs
+    dy2 = ys * 23.5             # vertical distance between ports and LEDs
+
+    yKnobs = ys * 45.0          # mm descent to knob centers
+    yCvIns = yKnobs + dy1       # mm descent to CV input ports
+    yLeds = yCvIns + dy2        # mm descent to LED centers
+    yOut0 = yLeds + dy1         # mm descent to X outputs
+    yOut1 = yOut0 + dy1         # mm descent to Y outputs
+    yOut2 = yOut1 + dy1         # mm descent to Z outputs
+    yOut3 = yOut2 + dy1         # mm descent to +/- outputs
+
+    # Make the TripleSloth.svg panel.
+    svgFileName = os.path.join(SLOTH_SOURCE_ROOT, 'res/TripleSloth.svg')
     with Font('NotoMono-Regular.ttf') as font:
-        panel = Panel(TRIPLE_SLOTH_PANEL_WIDTH)
         pl = Element('g', 'PanelLayer')
         pl.append(BorderRect(TRIPLE_SLOTH_PANEL_WIDTH, PANEL_COLOR, BORDER_COLOR))
         pl.append(SlothTitlePath('triple sloth', font, panel))
         pl.append(LogoElement(panel))
+        art = Element('g', 'artwork').setAttrib('style', 'stroke:#c1a377;stroke-width:1.5;stroke-linecap:round;')
+        art.append(LineElement(x1, yKnobs, x1, yOut2))
+        art.append(LineElement(x2, yLeds,  x2, yOut2))
+        art.append(LineElement(x3, yKnobs, x3, yOut2))
+        art.append(LineElement(x1, yOut2, xn, yOut3))
+        art.append(LineElement(x2, yOut2, xn, yOut3))
+        art.append(LineElement(x2, yOut2, xp, yOut3))
+        art.append(LineElement(x3, yOut2, xp, yOut3))
+        pl.append(art)
         panel.append(pl)
-        return Save(panel, svgFileName)
+
+    # Write a C++ header file with consistent coordinates, for creating widgets.
+    coordsHeaderFileName = os.path.join(SLOTH_SOURCE_ROOT, 'src/TripleSlothPanelCoords.hpp')
+    with open(coordsHeaderFileName, 'wt') as header:
+        header.write('/* Screen measurements for the TripleSloth.svg panel. */\n\n')
+        header.write('namespace TripleSlothPanel\n')
+        header.write('{\n')
+        header.write('    const float X1     = {:7.2f}f;\n'.format(x1))
+        header.write('    const float X2     = {:7.2f}f;\n'.format(x2))
+        header.write('    const float X3     = {:7.2f}f;\n'.format(x3))
+        header.write('    const float XN     = {:7.2f}f;\n'.format(xn))
+        header.write('    const float XP     = {:7.2f}f;\n'.format(xp))
+        header.write('    const float Y_KNOB = {:7.2f}f;\n'.format(yKnobs))
+        header.write('    const float Y_CVIN = {:7.2f}f;\n'.format(yCvIns))
+        header.write('    const float Y_LED  = {:7.2f}f;\n'.format(yLeds))
+        header.write('    const float Y_OUT0 = {:7.2f}f;\n'.format(yOut0))
+        header.write('    const float Y_OUT1 = {:7.2f}f;\n'.format(yOut1))
+        header.write('    const float Y_OUT2 = {:7.2f}f;\n'.format(yOut2))
+        header.write('    const float Y_OUT3 = {:7.2f}f;\n'.format(yOut3))
+        header.write('}\n')
+        Print('Wrote: {}'.format(coordsHeaderFileName))
+    return Save(panel, svgFileName)
 
 
 if __name__ == '__main__':
