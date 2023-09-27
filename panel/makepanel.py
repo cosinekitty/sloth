@@ -15,16 +15,17 @@ def Save(panel:Panel, filename:str) -> int:
     panel.save(filename)
     return Print('Wrote: ' + filename)
 
-PANEL_WIDTH = 4
+SLOTH_PANEL_WIDTH = 4
+TRIPLE_SLOTH_PANEL_WIDTH = 8
 PANEL_COLOR  = '#e6e5e5'
 BORDER_COLOR = '#e6e5e5'
 
-def GenerateMainPanel(variantName: str) -> int:
+def GenerateSlothPanel(variantName: str) -> int:
     svgFileName = '/home/don/github/nonlinearcircuits/res/Sloth{}.svg'.format(variantName)
     with Font('NotoMono-Regular.ttf') as font:
-        panel = Panel(PANEL_WIDTH)
+        panel = Panel(SLOTH_PANEL_WIDTH)
         pl = Element('g', 'PanelLayer')
-        pl.append(BorderRect(PANEL_WIDTH, PANEL_COLOR, BORDER_COLOR))
+        pl.append(BorderRect(SLOTH_PANEL_WIDTH, PANEL_COLOR, BORDER_COLOR))
         pl.append(
             Element('g', 'text_sloth', [
                 Path('M 17.901689,18.098277 V 17.01755 q 1.256508,0.559895 2.408848,0.559895 1.790361,0 1.790361,-1.054685 0,-0.371093 -0.31901,-0.64453 -0.31901,-0.273436 -1.471351,-0.690102 -1.516923,-0.566405 -1.914057,-1.035154 -0.390624,-0.475259 -0.390624,-1.119788 0,-0.885415 0.722654,-1.386716 0.729165,-0.507811 2.011714,-0.507811 1.289059,0 2.402338,0.48177 l -0.390624,0.970049 Q 21.567045,12.12173 20.67512,12.12173 q -1.536455,0 -1.536455,0.865883 0,0.397134 0.32552,0.638019 0.332031,0.234374 1.516924,0.65755 1.373694,0.501301 1.822912,0.989581 0.455728,0.48177 0.455728,1.184893 0,0.97656 -0.761717,1.536455 -0.761717,0.553384 -2.154943,0.553384 -1.614579,0 -2.4414,-0.449218 z'),
@@ -34,7 +35,7 @@ def GenerateMainPanel(variantName: str) -> int:
                 Path('m 54.35993,18.417287 v -4.602853 q 0,-1.692704 -1.549475,-1.692704 -1.998693,0 -1.998693,2.591139 v 3.704418 H 49.626869 V 8.2871038 h 1.184893 v 3.0078052 l -0.05208,0.937497 h 0.0651 q 0.670571,-1.093747 2.187494,-1.093747 2.532546,0 2.532546,2.610671 v 4.667957 z')
             ])
             .setAttrib('transform', 'matrix(0.42512425,0,0,0.37962349,-5.4519469,3.4394483)')
-            .setAttrib('style', 'fill:#5c3114;stroke:#5c3114;stroke-width:0.188976;stroke-linejoin:bevel')
+            .setAttrib('style', 'fill:#5c3114;stroke:#5c3114;stroke-width:0.189;stroke-linejoin:bevel')
         )
         pl.append(TextItem(variantName.lower(), font, 10.0).toPath(
             panel.mmWidth/2,
@@ -87,9 +88,28 @@ def GenerateMainPanel(variantName: str) -> int:
         return Save(panel, svgFileName)
 
 
+def GenerateTripleSlothPanel() -> int:
+    svgFileName = '/home/don/github/nonlinearcircuits/res/TripleSloth.svg'
+    with Font('NotoMono-Regular.ttf') as font:
+        panel = Panel(TRIPLE_SLOTH_PANEL_WIDTH)
+        pl = Element('g', 'PanelLayer')
+        pl.append(BorderRect(TRIPLE_SLOTH_PANEL_WIDTH, PANEL_COLOR, BORDER_COLOR))
+        pl.append(TextItem('sloths', font, 14.0).toPath(
+            panel.mmWidth/2,
+            5.0,
+            HorizontalAlignment.Center,
+            VerticalAlignment.Top,
+            'fill:#5c3114;stroke:#5c3114;stroke-width:0.12;stroke-linejoin:bevel',
+            'text_variant'
+        ))
+        panel.append(pl)
+        return Save(panel, svgFileName)
+
+
 if __name__ == '__main__':
     sys.exit(
-        GenerateMainPanel("Torpor") or
-        GenerateMainPanel("Apathy") or
-        GenerateMainPanel("Inertia")
+        GenerateSlothPanel("Torpor") or
+        GenerateSlothPanel("Apathy") or
+        GenerateSlothPanel("Inertia") or
+        GenerateTripleSlothPanel()
     )
