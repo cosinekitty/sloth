@@ -132,6 +132,31 @@ def GenerateSlothPanel(variantName: str) -> int:
         return Save(panel, svgFileName)
 
 
+PlusMinusRadiusMm = 1.2
+PlusMinusStyle = 'stroke:#af5a20;stroke-width:0.3;stroke-linejoin:bevel'
+
+def SlothNegative(x: float, y: float, id: str) -> Element:
+    # For some reason, I can't render "+" or "-" as text.
+    # So I will do this by drawing lines.
+    return (
+        Element('g', id, [
+            LineElement(x - PlusMinusRadiusMm, y, x + PlusMinusRadiusMm, y)
+        ])
+        .setAttrib('style', PlusMinusStyle)
+    )
+
+def SlothPositive(x: float, y: float, id: str) -> Element:
+    # For some reason, I can't render "+" or "-" as text.
+    # So I will do this by drawing lines.
+    return (
+        Element('g', id, [
+            LineElement(x - PlusMinusRadiusMm, y, x + PlusMinusRadiusMm, y),
+            LineElement(x, y - PlusMinusRadiusMm, x, y + PlusMinusRadiusMm)
+        ])
+        .setAttrib('style', PlusMinusStyle)
+    )
+
+
 def GenerateTripleSlothPanel() -> int:
     # I traced the original Triple Sloth panel design from
     # https://www.nonlinearcircuits.com/modules/p/triple-sloth
@@ -147,6 +172,7 @@ def GenerateTripleSlothPanel() -> int:
 
     dx = xs * 23.0              # mm screen distance between center line and left/right columns
     ex = xs * 11.5              # horizontal space between voltage labels and voltage columns
+    px = xs * 12.5              # adjusted space for "+" and "-" labels
 
     x1 = panel.mmWidth/2 - dx   # left column horizontal offset
     x2 = panel.mmWidth/2        # center column horizontal offset
@@ -155,6 +181,8 @@ def GenerateTripleSlothPanel() -> int:
     xp = (x2 + x3)/2            # positive zsum port horizontal offset
     xL = x1 - ex                # horizontal position of left voltage labels
     xR = x3 + ex                # horizontal position of right voltage labels
+    xN = xn - px                # horizontal position of "-" label
+    xP = xp + px                # horizontal position of "+" label
 
     # Make the TripleSloth.svg panel.
     svgFileName = os.path.join(SLOTH_SOURCE_ROOT, 'res/TripleSloth.svg')
@@ -183,6 +211,8 @@ def GenerateTripleSlothPanel() -> int:
         pl.append(SlothLabel('X',  font, xR, yOut0,  'text_xright',  VerticalAlignment.Middle, 9.0))
         pl.append(SlothLabel('Y',  font, xR, yOut1,  'text_yright',  VerticalAlignment.Middle, 9.0))
         pl.append(SlothLabel('Z',  font, xR, yOut2,  'text_zright',  VerticalAlignment.Middle, 9.0))
+        pl.append(SlothNegative(xN, yOut3, 'text_neg'))
+        pl.append(SlothPositive(xP, yOut3, 'text_pos'))
         pl.append(LogoElement(panel))
         panel.append(pl)
 
