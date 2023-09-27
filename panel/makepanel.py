@@ -217,7 +217,7 @@ def GenerateTripleSlothPanel() -> int:
         panel.append(pl)
 
     # Write a C++ header file with consistent coordinates, for creating widgets.
-    coordsHeaderFileName = os.path.join(SLOTH_SOURCE_ROOT, 'src/TripleSlothPanelCoords.hpp')
+    coordsHeaderFileName = os.path.join(SLOTH_SOURCE_ROOT, 'src/SlothPanelCoords.hpp')
     with open(coordsHeaderFileName, 'wt') as header:
         header.write('/* Screen measurements for the Sloth and Triple Sloth panels. */\n\n')
         header.write('namespace SlothPanel\n')
