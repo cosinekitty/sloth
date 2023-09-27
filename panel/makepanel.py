@@ -37,6 +37,17 @@ def SlothTitlePath(text: str, font: Font, panel: Panel) -> TextPath:
     )
 
 
+def SlothLabel(text: str, font: Font, xcenter: float, ytop: float) -> TextPath:
+    return TextItem(text, font, 10.0).toPath(
+        xcenter,
+        ytop,
+        HorizontalAlignment.Center,
+        VerticalAlignment.Top,
+        'fill:#af5a20;stroke:#90491a;stroke-width:0.05;stroke-linejoin:bevel',
+        'text_' + text
+    )
+
+
 def LogoElement(panel: Panel) -> Element:
     scale = 0.25
     logoWidth = 69.1
@@ -69,14 +80,7 @@ def GenerateSlothPanel(variantName: str) -> int:
         pl = Element('g', 'PanelLayer')
         pl.append(BorderRect(SLOTH_PANEL_WIDTH, PANEL_COLOR, BORDER_COLOR))
         pl.append(SlothTitlePath('sloth', font, panel))
-        pl.append(TextItem(variantName.lower(), font, 10.0).toPath(
-            panel.mmWidth/2,
-            33.3,
-            HorizontalAlignment.Center,
-            VerticalAlignment.Top,
-            'fill:#af5a20;stroke:#90491a;stroke-width:0.05;stroke-linejoin:bevel',
-            'text_variant'
-        ))
+        pl.append(SlothLabel(variantName.lower(), font, panel.mmWidth/2, 33.3))
         pl.append(
             Element('g', 'text_big', [
                 Path('M 3.15711,98.843067 H 3.140574 L 3.089587,99.034615 H 2.9063073 V 96.890389 H 3.15711 v 0.518142 q 0,0.111621 -0.011024,0.311436 H 3.15711 q 0.14745,-0.225998 0.443728,-0.225998 0.2769855,0 0.4340817,0.206706 0.1584743,0.205327 0.1584743,0.574641 0,0.37207 -0.1584743,0.580154 -0.1584743,0.206705 -0.4340817,0.206705 -0.2852537,0 -0.443728,-0.219108 z m 0,-0.567751 q 0,0.312815 0.095085,0.446484 0.096463,0.132292 0.3059243,0.132292 0.3748261,0 0.3748261,-0.581532 0,-0.570507 -0.3775822,-0.570507 -0.2135958,0 -0.3059243,0.129535 -0.092329,0.129536 -0.092329,0.443728 z'),
@@ -127,31 +131,37 @@ def GenerateTripleSlothPanel() -> int:
 
     dy1 = ys * 29.2             # vertical distance between knobs and CV, and between outputs
     dy2 = ys * 23.5             # vertical distance between ports and LEDs
+    dy3 = ys * 17.0             # vertical distance between center of knobs and "apathy", "torpor" labels
+    dy4 = ys * 12.0             # vertical distance between center of LEDs and "inertia" label
 
     yKnobs = ys * 45.0          # mm descent to knob centers
     yCvIns = yKnobs + dy1       # mm descent to CV input ports
-    yLeds = yCvIns + dy2        # mm descent to LED centers
-    yOut0 = yLeds + dy1         # mm descent to X outputs
-    yOut1 = yOut0 + dy1         # mm descent to Y outputs
-    yOut2 = yOut1 + dy1         # mm descent to Z outputs
-    yOut3 = yOut2 + dy1         # mm descent to +/- outputs
+    yLeds  = yCvIns + dy2       # mm descent to LED centers
+    yOut0  = yLeds  + dy1       # mm descent to X outputs
+    yOut1  = yOut0  + dy1       # mm descent to Y outputs
+    yOut2  = yOut1  + dy1       # mm descent to Z outputs
+    yOut3  = yOut2  + dy1       # mm descent to +/- outputs
 
     # Make the TripleSloth.svg panel.
     svgFileName = os.path.join(SLOTH_SOURCE_ROOT, 'res/TripleSloth.svg')
     with Font('NotoMono-Regular.ttf') as font:
         pl = Element('g', 'PanelLayer')
         pl.append(BorderRect(TRIPLE_SLOTH_PANEL_WIDTH, PANEL_COLOR, BORDER_COLOR))
-        pl.append(SlothTitlePath('triple sloth', font, panel))
-        pl.append(LogoElement(panel))
         art = Element('g', 'artwork').setAttrib('style', 'stroke:#c1a377;stroke-width:1.5;stroke-linecap:round;')
         art.append(LineElement(x1, yKnobs, x1, yOut2))
         art.append(LineElement(x2, yLeds,  x2, yOut2))
         art.append(LineElement(x3, yKnobs, x3, yOut2))
-        art.append(LineElement(x1, yOut2, xn, yOut3))
-        art.append(LineElement(x2, yOut2, xn, yOut3))
-        art.append(LineElement(x2, yOut2, xp, yOut3))
-        art.append(LineElement(x3, yOut2, xp, yOut3))
+        art.append(LineElement(x1, yOut2,  xn, yOut3))
+        art.append(LineElement(x2, yOut2,  xn, yOut3))
+        art.append(LineElement(x2, yOut2,  xp, yOut3))
+        art.append(LineElement(x3, yOut2,  xp, yOut3))
+        art.append(LineElement(xn, yOut3,  xp, yOut3))
         pl.append(art)
+        pl.append(SlothTitlePath('triple sloth', font, panel))
+        pl.append(SlothLabel('apathy',  font, x1, yKnobs - dy3))
+        pl.append(SlothLabel('torpor',  font, x3, yKnobs - dy3))
+        pl.append(SlothLabel('inertia', font, x2, yLeds - dy4))
+        pl.append(LogoElement(panel))
         panel.append(pl)
 
     # Write a C++ header file with consistent coordinates, for creating widgets.
