@@ -20,23 +20,28 @@ TRIPLE_SLOTH_PANEL_WIDTH = 8
 PANEL_COLOR  = '#e6e5e5'
 BORDER_COLOR = '#e6e5e5'
 
+
+def SlothTitlePath(text: str, font: Font, panel: Panel) -> TextPath:
+    ti = TextItem(text, font, 14.0)
+    return ti.toPath(
+        panel.mmWidth/2 - 0.3,
+        6.0,
+        HorizontalAlignment.Center,
+        VerticalAlignment.Top,
+        'fill:#5c3114;stroke:#5c3114;stroke-width:0.1;stroke-linejoin:bevel',
+        'text_title',
+        1.15,
+        1.0
+    )
+
+
 def GenerateSlothPanel(variantName: str) -> int:
     svgFileName = '/home/don/github/nonlinearcircuits/res/Sloth{}.svg'.format(variantName)
     with Font('NotoMono-Regular.ttf') as font:
         panel = Panel(SLOTH_PANEL_WIDTH)
         pl = Element('g', 'PanelLayer')
         pl.append(BorderRect(SLOTH_PANEL_WIDTH, PANEL_COLOR, BORDER_COLOR))
-        pl.append(
-            Element('g', 'text_sloth', [
-                Path('M 17.901689,18.098277 V 17.01755 q 1.256508,0.559895 2.408848,0.559895 1.790361,0 1.790361,-1.054685 0,-0.371093 -0.31901,-0.64453 -0.31901,-0.273436 -1.471351,-0.690102 -1.516923,-0.566405 -1.914057,-1.035154 -0.390624,-0.475259 -0.390624,-1.119788 0,-0.885415 0.722654,-1.386716 0.729165,-0.507811 2.011714,-0.507811 1.289059,0 2.402338,0.48177 l -0.390624,0.970049 Q 21.567045,12.12173 20.67512,12.12173 q -1.536455,0 -1.536455,0.865883 0,0.397134 0.32552,0.638019 0.332031,0.234374 1.516924,0.65755 1.373694,0.501301 1.822912,0.989581 0.455728,0.48177 0.455728,1.184893 0,0.97656 -0.761717,1.536455 -0.761717,0.553384 -2.154943,0.553384 -1.614579,0 -2.4414,-0.449218 z'),
-                Path('M 28.044893,9.218091 26.300106,9.0813726 V 8.2871038 h 2.93619 v 9.1991952 l 2.291661,0.130208 v 0.80078 h -5.722642 v -0.80078 l 2.239578,-0.130208 z'),
-                Path('m 36.553986,18.547495 q -1.406247,0 -2.317703,-1.009112 -0.904945,-1.015623 -0.904945,-2.708327 0,-1.712235 0.878904,-2.701816 0.885414,-0.989581 2.382806,-0.989581 1.419267,0 2.324213,1.009112 0.904946,1.009112 0.904946,2.682285 0,1.725256 -0.891925,2.721347 -0.891925,0.996092 -2.376296,0.996092 z m 0.02604,-0.983071 q 2.018224,0 2.018224,-2.734368 0,-2.708326 -2.031244,-2.708326 -2.011714,0 -2.011714,2.708326 0,2.734368 2.024734,2.734368 z'),
-                Path('m 47.224532,17.440727 v 0.898435 q -0.846352,0.208333 -1.640621,0.208333 -2.356765,0 -2.356765,-2.239578 v -4.147125 h -1.738277 v -0.611978 l 1.738277,-0.319009 0.501301,-1.8684852 h 0.683592 v 1.9075472 h 2.851555 v 0.891925 h -2.851555 v 4.147125 q 0,1.269528 1.249997,1.269528 0.605467,0 1.562496,-0.136718 z'),
-                Path('m 54.35993,18.417287 v -4.602853 q 0,-1.692704 -1.549475,-1.692704 -1.998693,0 -1.998693,2.591139 v 3.704418 H 49.626869 V 8.2871038 h 1.184893 v 3.0078052 l -0.05208,0.937497 h 0.0651 q 0.670571,-1.093747 2.187494,-1.093747 2.532546,0 2.532546,2.610671 v 4.667957 z')
-            ])
-            .setAttrib('transform', 'matrix(0.42512425,0,0,0.37962349,-5.4519469,3.4394483)')
-            .setAttrib('style', 'fill:#5c3114;stroke:#5c3114;stroke-width:0.189;stroke-linejoin:bevel')
-        )
+        pl.append(SlothTitlePath('sloth', font, panel))
         pl.append(TextItem(variantName.lower(), font, 10.0).toPath(
             panel.mmWidth/2,
             33.3,
@@ -94,14 +99,7 @@ def GenerateTripleSlothPanel() -> int:
         panel = Panel(TRIPLE_SLOTH_PANEL_WIDTH)
         pl = Element('g', 'PanelLayer')
         pl.append(BorderRect(TRIPLE_SLOTH_PANEL_WIDTH, PANEL_COLOR, BORDER_COLOR))
-        pl.append(TextItem('sloths', font, 14.0).toPath(
-            panel.mmWidth/2,
-            5.0,
-            HorizontalAlignment.Center,
-            VerticalAlignment.Top,
-            'fill:#5c3114;stroke:#5c3114;stroke-width:0.12;stroke-linejoin:bevel',
-            'text_variant'
-        ))
+        pl.append(SlothTitlePath('triple sloth', font, panel))
         panel.append(pl)
         return Save(panel, svgFileName)
 

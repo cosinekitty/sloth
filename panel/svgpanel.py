@@ -131,9 +131,10 @@ class TextItem:
         """Generate the SVG path that draws this text block at a given location."""
         return self.font.render(self.text, x, y, self.points)
 
-    def measure(self) -> Tuple[float,float]:
+    def measure(self, xscale:float = 1.0, yscale:float = 1.0) -> Tuple[float,float]:
         """Returns a (width, height) tuple of a rectangle that fits around this text block."""
-        return self.font.measure(self.text, self.points)
+        (width, height) = self.font.measure(self.text, self.points)
+        return (xscale*width, yscale*height)
 
     def toPath(
             self,
@@ -142,12 +143,16 @@ class TextItem:
             horizontal: HorizontalAlignment,
             vertical: VerticalAlignment,
             style: str = '',
-            id: str = '') -> 'TextPath':
+            id: str = '',
+            xscale: float = 1.0,
+            yscale: float = 1.0) -> 'TextPath':
         """Converts this text block to a path with a given vertical and horizontal alignment."""
-        (dx, dy) = self.measure()
+        (dx, dy) = self.measure(xscale, yscale)
         x = xpos + dx*_HorAdjust(horizontal)
         y = ypos + dy*_VerAdjust(vertical)
         tp = TextPath(self, x, y, id)
+        if (xscale != 1.0) or (yscale != 1.0):
+            tp.setAttrib('transform', 'scale({:0.6g},{:0.6g})'.format(xscale, yscale))
         tp.setAttrib('style', style)
         return tp
 
