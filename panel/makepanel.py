@@ -37,14 +37,22 @@ def SlothTitlePath(text: str, font: Font, panel: Panel) -> TextPath:
     )
 
 
-def SlothLabel(text: str, font: Font, xcenter: float, ytop: float) -> TextPath:
-    return TextItem(text, font, 10.0).toPath(
-        xcenter,
-        ytop,
+def SlothLabel(
+        text: str,
+        font: Font,
+        x: float,
+        y: float,
+        id: str = '',
+        va: VerticalAlignment = VerticalAlignment.Top,
+        fontSize: float = 10.0
+) -> TextPath:
+    return TextItem(text, font, fontSize).toPath(
+        x,
+        y,
         HorizontalAlignment.Center,
-        VerticalAlignment.Top,
+        va,
         'fill:#af5a20;stroke:#90491a;stroke-width:0.05;stroke-linejoin:bevel',
-        'text_' + text
+        id or ('text_' + text)
     )
 
 
@@ -122,20 +130,25 @@ def GenerateTripleSlothPanel() -> int:
     ys = panel.mmHeight / paperHeight       # scaling factor for vertical screen distances
 
     dx = xs * 23.0              # mm screen distance between center line and left/right columns
+    ex = xs * 11.5              # horizontal space between voltage labels and voltage columns
 
     x1 = panel.mmWidth/2 - dx   # left column horizontal offset
     x2 = panel.mmWidth/2        # center column horizontal offset
     x3 = panel.mmWidth/2 + dx   # right column horizontal offset
     xn = (x1 + x2)/2            # negative zsum port horizontal offset
     xp = (x2 + x3)/2            # positive zsum port horizontal offset
+    xL = x1 - ex                # horizontal position of left voltage labels
+    xR = x3 + ex                # horizontal position of right voltage labels
 
-    dy1 = ys * 29.2             # vertical distance between knobs and CV, and between outputs
+    yadjust = 4.2
+    dy0 = ys * (29.2 - yadjust) # vertical distance between knobs and CV
+    dy1 = ys * 29.2             # vertical distance between outputs
     dy2 = ys * 23.5             # vertical distance between ports and LEDs
-    dy3 = ys * 17.0             # vertical distance between center of knobs and "apathy", "torpor" labels
-    dy4 = ys * 12.0             # vertical distance between center of LEDs and "inertia" label
+    dy3 = ys * 20.0             # vertical distance between center of knobs and "apathy", "torpor" labels
+    dy4 = ys * 15.0             # vertical distance between center of LEDs and "inertia" label
 
-    yKnobs = ys * 45.0          # mm descent to knob centers
-    yCvIns = yKnobs + dy1       # mm descent to CV input ports
+    yKnobs = ys * (45.0 + yadjust)   # mm descent to knob centers
+    yCvIns = yKnobs + dy0       # mm descent to CV input ports
     yLeds  = yCvIns + dy2       # mm descent to LED centers
     yOut0  = yLeds  + dy1       # mm descent to X outputs
     yOut1  = yOut0  + dy1       # mm descent to Y outputs
@@ -148,9 +161,9 @@ def GenerateTripleSlothPanel() -> int:
         pl = Element('g', 'PanelLayer')
         pl.append(BorderRect(TRIPLE_SLOTH_PANEL_WIDTH, PANEL_COLOR, BORDER_COLOR))
         art = Element('g', 'artwork').setAttrib('style', 'stroke:#c1a377;stroke-width:1.5;stroke-linecap:round;')
-        art.append(LineElement(x1, yKnobs, x1, yOut2))
+        art.append(LineElement(x1, yCvIns, x1, yOut2))
         art.append(LineElement(x2, yLeds,  x2, yOut2))
-        art.append(LineElement(x3, yKnobs, x3, yOut2))
+        art.append(LineElement(x3, yCvIns, x3, yOut2))
         art.append(LineElement(x1, yOut2,  xn, yOut3))
         art.append(LineElement(x2, yOut2,  xn, yOut3))
         art.append(LineElement(x2, yOut2,  xp, yOut3))
@@ -161,6 +174,14 @@ def GenerateTripleSlothPanel() -> int:
         pl.append(SlothLabel('apathy',  font, x1, yKnobs - dy3))
         pl.append(SlothLabel('torpor',  font, x3, yKnobs - dy3))
         pl.append(SlothLabel('inertia', font, x2, yLeds - dy4))
+        pl.append(SlothLabel('CV', font, xL, yCvIns, 'text_cvleft',  VerticalAlignment.Middle, 9.0))
+        pl.append(SlothLabel('CV', font, xR, yCvIns, 'text_cvright', VerticalAlignment.Middle, 9.0))
+        pl.append(SlothLabel('X',  font, xL, yOut0,  'text_xleft' ,  VerticalAlignment.Middle, 9.0))
+        pl.append(SlothLabel('Y',  font, xL, yOut1,  'text_yleft' ,  VerticalAlignment.Middle, 9.0))
+        pl.append(SlothLabel('Z',  font, xL, yOut2,  'text_zleft' ,  VerticalAlignment.Middle, 9.0))
+        pl.append(SlothLabel('X',  font, xR, yOut0,  'text_xright',  VerticalAlignment.Middle, 9.0))
+        pl.append(SlothLabel('Y',  font, xR, yOut1,  'text_yright',  VerticalAlignment.Middle, 9.0))
+        pl.append(SlothLabel('Z',  font, xR, yOut2,  'text_zright',  VerticalAlignment.Middle, 9.0))
         pl.append(LogoElement(panel))
         panel.append(pl)
 
