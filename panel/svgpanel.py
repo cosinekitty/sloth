@@ -15,6 +15,8 @@ from fontTools.misc.transform import DecomposedTransform    # type: ignore
 # Prevent seeing lots of "ns0:" everywhere when we re-serialized the XML.
 et.register_namespace('', 'http://www.w3.org/2000/svg')
 
+HP_WIDTH_MM = 5.08
+PANEL_HEIGHT_MM = 128.5
 
 class Error(Exception):
     """Indicates an error in an svgpanel function."""
@@ -236,8 +238,8 @@ class BorderRect(Element):
         super().__init__('rect', 'border_rect')
         if hpWidth <= 0:
             raise Error('Invalid hpWidth={}'.format(hpWidth))
-        self.setAttribFloat('width', 5.08 * hpWidth)
-        self.setAttribFloat('height', 128.5)
+        self.setAttribFloat('width', HP_WIDTH_MM * hpWidth)
+        self.setAttribFloat('height', PANEL_HEIGHT_MM)
         self.setAttrib('x', '0')
         self.setAttrib('y', '0')
         self.setAttrib('style', 'display:inline;fill:{};fill-opacity:1;fill-rule:nonzero;stroke:{};stroke-width:0.7;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;image-rendering:auto'.format(fillColor, borderColor))
@@ -278,8 +280,8 @@ class Panel(Element):
         super().__init__('svg')
         if hpWidth <= 0:
             raise Error('Invalid hpWidth={}'.format(hpWidth))
-        self.mmWidth = 5.08 * hpWidth
-        self.mmHeight = 128.5
+        self.mmWidth = HP_WIDTH_MM * hpWidth
+        self.mmHeight = PANEL_HEIGHT_MM
         self.setAttrib('xmlns', 'http://www.w3.org/2000/svg')
         self.setAttrib('width', '{:0.2f}mm'.format(self.mmWidth))
         self.setAttrib('height', '{:0.2f}mm'.format(self.mmHeight))

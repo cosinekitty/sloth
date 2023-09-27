@@ -16,6 +16,23 @@ def Save(panel:Panel, filename:str) -> int:
     panel.save(filename)
     return Print('Wrote: ' + filename)
 
+
+paperHeight = 250.0     # mm on paper
+ys = PANEL_HEIGHT_MM / paperHeight       # scaling factor for vertical screen distances
+yadjust = 4.2
+dy0 = ys * (29.2 - yadjust) # vertical distance between knobs and CV
+dy1 = ys * 29.2             # vertical distance between outputs
+dy2 = ys * 23.5             # vertical distance between ports and LEDs
+dy3 = ys * 21.0             # vertical distance between center of knobs and "apathy", "torpor" labels
+dy4 = ys * 15.0             # vertical distance between center of LEDs and "inertia" label
+yKnobs = ys * (45.0 + yadjust)   # mm descent to knob centers
+yCvIns = yKnobs + dy0       # mm descent to CV input ports
+yLeds  = yCvIns + dy2       # mm descent to LED centers
+yOut0  = yLeds  + dy1       # mm descent to X outputs
+yOut1  = yOut0  + dy1       # mm descent to Y outputs
+yOut2  = yOut1  + dy1       # mm descent to Z outputs
+yOut3  = yOut2  + dy1       # mm descent to +/- outputs
+
 SLOTH_PANEL_WIDTH = 4
 TRIPLE_SLOTH_PANEL_WIDTH = 8
 PANEL_COLOR  = '#e6e5e5'
@@ -88,14 +105,15 @@ def GenerateSlothPanel(variantName: str) -> int:
         pl = Element('g', 'PanelLayer')
         pl.append(BorderRect(SLOTH_PANEL_WIDTH, PANEL_COLOR, BORDER_COLOR))
         pl.append(SlothTitlePath('sloth', font, panel))
-        pl.append(SlothLabel(variantName.lower(), font, panel.mmWidth/2, 33.3))
+        pl.append(SlothLabel(variantName.lower(), font, panel.mmWidth/2, yKnobs - dy3))
+        ldy = -3.5
         pl.append(
             Element('g', 'text_big', [
                 Path('M 3.15711,98.843067 H 3.140574 L 3.089587,99.034615 H 2.9063073 V 96.890389 H 3.15711 v 0.518142 q 0,0.111621 -0.011024,0.311436 H 3.15711 q 0.14745,-0.225998 0.443728,-0.225998 0.2769855,0 0.4340817,0.206706 0.1584743,0.205327 0.1584743,0.574641 0,0.37207 -0.1584743,0.580154 -0.1584743,0.206705 -0.4340817,0.206705 -0.2852537,0 -0.443728,-0.219108 z m 0,-0.567751 q 0,0.312815 0.095085,0.446484 0.096463,0.132292 0.3059243,0.132292 0.3748261,0 0.3748261,-0.581532 0,-0.570507 -0.3775822,-0.570507 -0.2135958,0 -0.3059243,0.129535 -0.092329,0.129536 -0.092329,0.443728 z'),
                 Path('m 5.2544826,96.898657 q 0.146072,0 0.146072,0.157096 0,0.07993 -0.044097,0.119889 -0.042719,0.03858 -0.1019748,0.03858 -0.14745,0 -0.14745,-0.158474 0,-0.157096 0.14745,-0.157096 z m -0.1267794,0.82131 -0.370692,-0.02894 V 97.52153 H 5.378506 v 1.316025 l 0.485069,0.02756 v 0.169499 H 4.6536584 v -0.169499 l 0.4740448,-0.02756 z'),
                 Path('m 7.6274626,97.52153 v 0.155718 l -0.2700953,0.03721 q 0.089573,0.117133 0.089573,0.293522 0,0.221864 -0.14745,0.354155 -0.146072,0.130914 -0.407899,0.130914 -0.075792,0 -0.1185112,-0.0083 -0.1378037,0.07717 -0.1378037,0.183279 0,0.115755 0.221864,0.115755 h 0.2576929 q 0.2397785,0 0.3665579,0.106109 0.1267794,0.106109 0.1267794,0.303168 0,0.51952 -0.778591,0.51952 -0.3004121,0 -0.4575083,-0.111621 -0.1557182,-0.110243 -0.1557182,-0.310059 0,-0.292143 0.3307289,-0.37207 -0.1322916,-0.06477 -0.1322916,-0.212217 0,-0.15434 0.183279,-0.264583 -0.1226453,-0.05099 -0.1929252,-0.168121 -0.07028,-0.118511 -0.07028,-0.257693 0,-0.250803 0.1460719,-0.38585 0.14745,-0.136426 0.4189233,-0.136426 0.1185112,0 0.2067056,0.02756 z m -0.7331157,0.799261 q 0.3073022,0 0.3073022,-0.316948 0,-0.329351 -0.3100583,-0.329351 -0.3100584,0 -0.3100584,0.333485 0,0.312814 0.3128145,0.312814 z m 0.1350476,0.689019 h -0.259071 q -0.3169485,0 -0.3169485,0.272851 0,0.239779 0.373448,0.239779 0.5443247,0 0.5443247,-0.307303 0,-0.121267 -0.068902,-0.163986 -0.068902,-0.04134 -0.2728514,-0.04134 z')
             ])
-            .setAttrib('transform', 'translate(0,-5.2916669)')
+            .setAttrib('transform', 'translate(0,{:0.3g})'.format(-5.29 + ldy))
             .setAttrib('style', 'fill:#854116;stroke:#5f2f10;stroke-width:0.05;stroke-linejoin:bevel')
         )
         pl.append(
@@ -106,7 +124,7 @@ def GenerateSlothPanel(variantName: str) -> int:
                 Path('m 16.209056,97.241821 -0.369314,-0.02894 v -0.16812 h 0.621494 v 1.947166 l 0.485069,0.02756 v 0.169499 h -1.211294 v -0.169499 l 0.474045,-0.02756 z'),
                 Path('m 17.902663,97.241821 -0.369314,-0.02894 v -0.16812 h 0.621495 v 1.947166 l 0.485069,0.02756 v 0.169499 h -1.211294 v -0.169499 l 0.474044,-0.02756 z')
             ])
-            .setAttrib('transform', 'translate(-0.03503753,-5.4001521)')
+            .setAttrib('transform', 'translate(-0.03503753,{:0.3g})'.format(-5.40 + ldy))
             .setAttrib('style', 'fill:#dc7f41;stroke:#b15b21;stroke-width:0.05;stroke-linejoin:bevel')
         )
         pl.append(LogoElement(panel))
@@ -125,9 +143,7 @@ def GenerateTripleSlothPanel() -> int:
     panel = Panel(TRIPLE_SLOTH_PANEL_WIDTH)
 
     paperWidth = 78.0       # mm on paper
-    paperHeight = 250.0     # mm on paper
     xs = panel.mmWidth / paperWidth         # scaling factor for horizontal screen distances
-    ys = panel.mmHeight / paperHeight       # scaling factor for vertical screen distances
 
     dx = xs * 23.0              # mm screen distance between center line and left/right columns
     ex = xs * 11.5              # horizontal space between voltage labels and voltage columns
@@ -139,21 +155,6 @@ def GenerateTripleSlothPanel() -> int:
     xp = (x2 + x3)/2            # positive zsum port horizontal offset
     xL = x1 - ex                # horizontal position of left voltage labels
     xR = x3 + ex                # horizontal position of right voltage labels
-
-    yadjust = 4.2
-    dy0 = ys * (29.2 - yadjust) # vertical distance between knobs and CV
-    dy1 = ys * 29.2             # vertical distance between outputs
-    dy2 = ys * 23.5             # vertical distance between ports and LEDs
-    dy3 = ys * 20.0             # vertical distance between center of knobs and "apathy", "torpor" labels
-    dy4 = ys * 15.0             # vertical distance between center of LEDs and "inertia" label
-
-    yKnobs = ys * (45.0 + yadjust)   # mm descent to knob centers
-    yCvIns = yKnobs + dy0       # mm descent to CV input ports
-    yLeds  = yCvIns + dy2       # mm descent to LED centers
-    yOut0  = yLeds  + dy1       # mm descent to X outputs
-    yOut1  = yOut0  + dy1       # mm descent to Y outputs
-    yOut2  = yOut1  + dy1       # mm descent to Z outputs
-    yOut3  = yOut2  + dy1       # mm descent to +/- outputs
 
     # Make the TripleSloth.svg panel.
     svgFileName = os.path.join(SLOTH_SOURCE_ROOT, 'res/TripleSloth.svg')
@@ -188,8 +189,8 @@ def GenerateTripleSlothPanel() -> int:
     # Write a C++ header file with consistent coordinates, for creating widgets.
     coordsHeaderFileName = os.path.join(SLOTH_SOURCE_ROOT, 'src/TripleSlothPanelCoords.hpp')
     with open(coordsHeaderFileName, 'wt') as header:
-        header.write('/* Screen measurements for the TripleSloth.svg panel. */\n\n')
-        header.write('namespace TripleSlothPanel\n')
+        header.write('/* Screen measurements for the Sloth and Triple Sloth panels. */\n\n')
+        header.write('namespace SlothPanel\n')
         header.write('{\n')
         header.write('    const float X1     = {:7.2f}f;\n'.format(x1))
         header.write('    const float X2     = {:7.2f}f;\n'.format(x2))
