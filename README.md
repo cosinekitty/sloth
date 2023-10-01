@@ -56,7 +56,25 @@ are consistent with their &plusmn;12&nbsp;V Eurorack supply rail.
 
 ## Circuit analysis
 
-The sum of currents into the (&minus;) input of `U3` must be zero:
+The analysis is based on *Kirchoff's Current Law* (KCL). Like water, electrical current is highly incompressible. This means that the amount of current flowing into a node must be equal to the amount of current flowing back out. By defining currents as positive when they flow into a node or negative when they flow out, KCL can be stated as: the sum of all currents flowing into a node must be equal to zero.
+
+We use Ohm's Law for resistors:
+
+$$
+I=V/R
+$$
+
+where $I$ is the current flowing through a resistor measured in amps, $V$ is the voltage difference across the resistor's terminals in volts, and $R$ is the resistor's resistance in ohms.
+
+For capacitors, we use the formula
+
+$$
+I = C\frac{\mathrm{d}V}{\mathrm{d}t}
+$$
+
+where $C$ is the capacitance in farads. This tells us that the current flowing through a capacitor is proportional to how fast the voltage across its terminals is changing with respect to time.
+
+Using KCL, the sum of currents into the (&minus;) input of `U3` must be zero:
 
 $$
 \frac{z}{R_1} + \frac{Q(z)}{R_2} + \frac{w}{K} + C_1 \frac{\mathrm{d}x}{\mathrm{d}t} = 0
@@ -75,14 +93,14 @@ C_3 \frac{\mathrm{d}w}{\mathrm{d}t} +
 \tag{3}
 $$
 
-The op-amp `U4` has the following current equation for its inverting input node:
+The op-amp `U4` has the following current equation for the node connected to its inverting input:
 
 $$
 \frac{w}{R_7} + C_2 \frac{\mathrm{d}y}{\mathrm{d}t} = 0
 \tag{4}
 $$
 
-The currents flowing through the inverting input of `U2` also sum to zero:
+The currents flowing through the node connected to the inverting input of `U2` also sum to zero:
 
 $$
 \frac{y}{R_5} + \frac{U}{R_8} + \frac{z}{R_4} = 0
@@ -92,8 +110,8 @@ $$
 ## Software simulation
 
 The simulation is implemented as the C++ class
-[`TorporSlothCircuit`](https://github.com/cosinekitty/sloth/blob/main/src/torpor_sloth_circuit.hpp).
-The method `TorporSlothCircuit::update` is called once per
+[`SlothCircuit`](https://github.com/cosinekitty/sloth/blob/main/src/SlothCircuit.hpp).
+The method `SlothCircuit::update` is called once per
 audio sample to calculate the next circuit state.
 All calculations use 64-bit IEEE floating-point arithmetic
 to ensure stability and convergence.
