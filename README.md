@@ -74,7 +74,7 @@ $$
 
 where $C$ is the capacitance in farads. This tells us that the current flowing through a capacitor is proportional to how fast the voltage across its terminals is changing with respect to time.
 
-Using KCL, the sum of currents into the (&minus;) input of `U3` must be zero:
+Using KCL, the sum of currents into the node at the (&minus;) input of `U3` must be zero:
 
 $$
 \frac{z}{R_1} + \frac{Q(z)}{R_2} + \frac{w}{K} + C_1 \frac{\mathrm{d}x}{\mathrm{d}t} = 0
