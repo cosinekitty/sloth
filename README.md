@@ -46,7 +46,7 @@ Q(z) =
     \begin{cases}
         \mathrm{+11.38 V} & \text{when } z \lt 0 \\
         \mathrm{-10.64 V} & \text{when } z \ge 0 \\
-    \end{cases} \tag{1}
+    \end{cases}
 $$
 
 I measured the voltages above using my own construction
@@ -76,8 +76,8 @@ where $C$ is the capacitance in farads. This tells us that the current flowing t
 Using KCL, the sum of currents into the node at the (&minus;) input of `U3` must be zero:
 
 $$
-\frac{z}{R_1} + \frac{Q(z)}{R_2} + \frac{w}{K} + C_1 \frac{\mathrm{d}x}{\mathrm{d}t} = 0
 \tag{2}
+\frac{z}{R_1} + \frac{Q(z)}{R_2} + \frac{w}{K} + C_1 \frac{\mathrm{d}x}{\mathrm{d}t} = 0
 $$
 
 where $K=R_3+R_9$.
