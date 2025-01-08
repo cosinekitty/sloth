@@ -41,13 +41,13 @@ which are all 0&nbsp;V. These inverting inputs are called *virtual grounds*.
 In contrast, the remaining op-amp `U1` acts as a comparator
 that outputs a binary state voltage
 
-$$$
+$$
 Q(z) =
     \begin{cases}
         \mathrm{+11.38 V} & \text{when } z \lt 0 \\
         \mathrm{-10.64 V} & \text{when } z \ge 0 \\
-    \end{cases}
-$$$
+    \end{cases} \tag{1}
+$$
 
 I measured the voltages above using my own construction
 of the circuit on a breadboard. These op-amp saturation voltages
