@@ -47,6 +47,7 @@ Q(z) =
         \mathrm{+11.38 V} & \text{when } z \lt 0 \\
         \mathrm{-10.64 V} & \text{when } z \ge 0 \\
     \end{cases}
+\tag{1}
 $$
 
 I measured the voltages above using my own construction
