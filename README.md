@@ -76,8 +76,8 @@ where $C$ is the capacitance in farads. This tells us that the current flowing t
 Using KCL, the sum of currents into the node at the (&minus;) input of `U3` must be zero:
 
 $$
-\tag{2}
 \frac{z}{R_1} + \frac{Q(z)}{R_2} + \frac{w}{K} + C_1 \frac{\mathrm{d}x}{\mathrm{d}t} = 0
+\tag{2}
 $$
 
 where $K=R_3+R_9$.
